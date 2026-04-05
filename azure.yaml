@@ -1,0 +1,27 @@
+# azure.yaml — Azure Developer CLI (azd) app definition for csa-swarm-platform
+name: csa-swarm-platform
+
+metadata:
+  template: csa-swarm-platform@2.0.0
+
+services:
+  backend:
+    project: .
+    language: python
+    host: containerapp
+    docker:
+      path: Dockerfile.backend
+      context: .
+
+  frontend:
+    project: ./frontend
+    language: js
+    host: containerapp
+    docker:
+      path: ../Dockerfile.frontend
+      context: ..
+
+infra:
+  provider: bicep
+  path: infra
+  module: main
