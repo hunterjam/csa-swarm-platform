@@ -14,6 +14,9 @@ param image string
 @description('Target port exposed by the container')
 param targetPort int
 
+@description('ACR login server for managed-identity pull (e.g. myacr.azurecr.io)')
+param registryServer string = ''
+
 @description('Environment variables')
 param env array = []
 
@@ -29,15 +32,25 @@ param minReplicas int = 1
 @description('Maximum replicas')
 param maxReplicas int = 5
 
+@description('azd service name tag (used by azd deploy to locate this app)')
+param azdServiceName string = ''
+
 resource app 'Microsoft.App/containerApps@2024-03-01' = {
   name: appName
   location: location
+  tags: empty(azdServiceName) ? {} : { 'azd-service-name': azdServiceName }
   identity: {
     type: 'SystemAssigned'
   }
   properties: {
     environmentId: environmentId
     configuration: {
+      registries: empty(registryServer) ? [] : [
+        {
+          server: registryServer
+          identity: 'system'
+        }
+      ]
       ingress: {
         external: true
         targetPort: targetPort

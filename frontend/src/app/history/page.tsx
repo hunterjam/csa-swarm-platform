@@ -5,6 +5,8 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import type { Round } from '@/lib/types';
+import { useSession } from '@/lib/session-context';
+import { Markdown } from '@/components/Markdown';
 
 const ROLE_COLORS: Record<string, string> = {
   csa_1:   'border-blue-400   bg-blue-50',
@@ -15,7 +17,14 @@ const ROLE_COLORS: Record<string, string> = {
 
 function HistoryContent() {
   const params = useSearchParams();
-  const sessionId = params.get('session') ?? '';
+  const { activeSessionId, setActiveSessionId } = useSession();
+  const sessionId = params.get('session') ?? activeSessionId;
+
+  // Sync context whenever the URL carries an explicit session param
+  useEffect(() => {
+    const p = params.get('session');
+    if (p) setActiveSessionId(p);
+  }, [params]);
 
   const [rounds, setRounds] = useState<Round[]>([]);
   const [loading, setLoading] = useState(false);
@@ -51,20 +60,36 @@ function HistoryContent() {
               <p className="text-sm">{r.pm_message}</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {Object.values(r.csa_responses).map(resp => (
-                <div key={resp.role} className={`border-l-4 rounded p-3 ${ROLE_COLORS[resp.role] ?? 'border-gray-300 bg-gray-50'}`}>
-                  <p className="text-xs font-bold text-gray-600 mb-1">{resp.display_name}</p>
-                  <p className="text-sm whitespace-pre-wrap">{resp.text}</p>
+              {Object.entries(r.csa_responses).map(([roleKey, resp]) => (
+                <div key={roleKey} className={`border-l-4 rounded p-3 ${ROLE_COLORS[roleKey] ?? 'border-gray-300 bg-gray-50'}`}>
+                  <p className="text-xs font-bold text-gray-600 mb-2">{resp.display_name}</p>
+                  <Markdown size="compact">{resp.text}</Markdown>
                 </div>
               ))}
             </div>
             <div className={`border-l-4 rounded p-3 ${ROLE_COLORS['dir_csa']}`}>
-              <p className="text-xs font-bold text-gray-600 mb-1">{r.dir_response.display_name} (Director Review)</p>
-              <p className="text-sm whitespace-pre-wrap">{r.dir_response.text}</p>
+              <p className="text-xs font-bold text-gray-600 mb-2">{r.dir_response.display_name} (Director Review)</p>
+              <Markdown size="compact">{r.dir_response.text}</Markdown>
             </div>
           </div>
         ))
       )}
+
+      {/* Wizard footer */}
+      <div className="flex justify-between pt-2 border-t mt-4">
+        <a
+          href={sessionId ? `/debate?session=${sessionId}` : '/debate'}
+          className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2 rounded border hover:bg-gray-50 transition-colors"
+        >
+          ← Debate
+        </a>
+        <a
+          href={sessionId ? `/recommendations?session=${sessionId}` : '/recommendations'}
+          className="bg-brand-600 text-white px-6 py-2 rounded text-sm font-medium hover:bg-brand-700 transition-colors"
+        >
+          Next: Deliverables →
+        </a>
+      </div>
     </div>
   );
 }

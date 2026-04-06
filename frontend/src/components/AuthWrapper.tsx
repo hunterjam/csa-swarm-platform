@@ -1,16 +1,18 @@
 // src/components/AuthWrapper.tsx
 'use client';
 
-import { useMsal, MsalAuthenticationTemplate } from '@azure/msal-react';
+import { MsalAuthenticationTemplate } from '@azure/msal-react';
 import { InteractionType } from '@azure/msal-browser';
-import { loginRequest, AUTH_ENABLED } from '@/lib/auth';
+import { useAuthConfig } from '@/components/MsalProvider';
 
 interface Props {
   children: React.ReactNode;
 }
 
 export default function AuthWrapper({ children }: Props) {
-  if (!AUTH_ENABLED) {
+  const { authEnabled, loginRequest } = useAuthConfig();
+
+  if (!authEnabled) {
     return <>{children}</>;
   }
 

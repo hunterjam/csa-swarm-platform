@@ -19,7 +19,9 @@ def _require(key: str) -> str:
 
 
 # ── Microsoft Agent Framework / Azure AI Foundry ────────────────────────
-FOUNDRY_PROJECT_ENDPOINT: str = _require("FOUNDRY_PROJECT_ENDPOINT")
+# Legacy project endpoint kept for reference; agents use the OpenAI endpoint directly.
+FOUNDRY_PROJECT_ENDPOINT: str = os.getenv("FOUNDRY_PROJECT_ENDPOINT", "")
+FOUNDRY_OPENAI_ENDPOINT: str = _require("FOUNDRY_OPENAI_ENDPOINT")
 FOUNDRY_MODEL_DEPLOYMENT_NAME: str = os.getenv("FOUNDRY_MODEL_DEPLOYMENT_NAME", "gpt-4o")
 
 # ── Cosmos DB ────────────────────────────────────────────────────────────

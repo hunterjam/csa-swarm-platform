@@ -40,6 +40,8 @@ async def _debate_stream(
     pm_message: str,
     store: CosmosStore,
     user_id: str,
+    agent_config: dict | None = None,
+    model_name: str | None = None,
 ) -> AsyncGenerator[str, None]:
     try:
         round_result: dict | None = None
@@ -47,6 +49,8 @@ async def _debate_stream(
             session_id=session_id,
             pm_message=pm_message,
             store=store,
+            agent_config=agent_config,
+            model_name=model_name,
         ):
             if event["type"] == "round_complete":
                 round_result = event["round"]
@@ -79,6 +83,8 @@ async def run_round(
             pm_message=body.pm_message,
             store=store,
             user_id=user["sub"],
+            agent_config=session.get("agent_config") or None,
+            model_name=session.get("model") or None,
         ),
         media_type="text/event-stream",
         headers={

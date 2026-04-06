@@ -4,6 +4,7 @@ import './globals.css';
 import MsalProvider from '@/components/MsalProvider';
 import NavBar from '@/components/NavBar';
 import AuthWrapper from '@/components/AuthWrapper';
+import { SessionProvider } from '@/lib/session-context';
 
 export const metadata: Metadata = {
   title: 'CSA Swarm Platform',
@@ -15,10 +16,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <MsalProvider>
-          <AuthWrapper>
-            <NavBar />
-            <main className="max-w-7xl mx-auto px-4 py-6">{children}</main>
-          </AuthWrapper>
+          <SessionProvider>
+            <AuthWrapper>
+              <NavBar />
+              <main className="max-w-7xl mx-auto px-4 py-6">{children}</main>
+            </AuthWrapper>
+          </SessionProvider>
         </MsalProvider>
       </body>
     </html>

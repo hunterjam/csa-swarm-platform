@@ -4,8 +4,8 @@ swarm/orchestrator.py
 System prompts, document type registry, and recommendation generation
 for csa-swarm-platform.
 
-generate_recommendation() uses Agent Framework AzureAIClient (not raw AzureOpenAI)
-to stay consistent with the rest of the platform and benefit from Foundry tracing.
+generate_recommendation() uses Agent Framework AzureOpenAIChatClient (Azure OpenAI)
+to call the model directly without requiring a Foundry project.
 """
 from __future__ import annotations
 
@@ -13,9 +13,33 @@ import asyncio
 import re
 
 from azure.identity.aio import DefaultAzureCredential
-from agent_framework.azure import AzureAIClient
+from agent_framework.azure import AzureOpenAIChatClient
 
 from config import settings
+
+# ---------------------------------------------------------------------------
+# Grounding constraint — prepended to every deliverable system prompt
+# ---------------------------------------------------------------------------
+
+_GROUNDING_CONSTRAINT = """\
+GROUNDING CONSTRAINT — NON-NEGOTIABLE
+All content in this document must be derived solely from one of two authoritative sources:
+1. DEBATE TRANSCRIPT: Information explicitly stated by participants in the debate rounds
+   provided below (including any uploaded documents or URLs surfaced during the session).
+2. OFFICIAL PUBLIC MICROSOFT DOCUMENTATION: Publicly documented Microsoft product
+   capabilities, announced features, and official architectural guidance (e.g., Azure Docs,
+   Microsoft Learn, Azure Well-Architected Framework).
+
+PROHIBITED:
+- Do not cite, recommend, or include any third-party product, vendor, service, or tool
+  unless it is explicitly named in the debate transcript or grounding context.
+- Do not invent, assume, or extrapolate product features, pricing, service limits, quotas,
+  or architectural patterns not explicitly present in the above sources.
+- Do not assert facts about customer environments that were not stated in the debate.
+
+If a required detail is absent from both sources, write: "Not addressed in the session"
+— do not speculate or fill the gap with generic best-practice content.
+"""
 
 # ---------------------------------------------------------------------------
 # System prompts (verbatim from csa-agentic-swarm MVP)
@@ -335,12 +359,12 @@ async def generate_recommendation(
 ) -> str:
     """
     Synthesize all debate rounds into a deliverable using Agent Framework.
-    Uses AzureAIClient (Foundry) — consistent with debate agents.
+    Uses AzureOpenAIChatClient (Azure OpenAI) — no Foundry project required.
     """
     if not round_history:
         return "No debate rounds found. Complete at least one round before generating."
 
-    system_prompt = _DOC_TYPE_PROMPTS.get(doc_type, _SYNTHESIS_SYSTEM_PROMPT)
+    system_prompt = _GROUNDING_CONSTRAINT + _DOC_TYPE_PROMPTS.get(doc_type, _SYNTHESIS_SYSTEM_PROMPT)
 
     # Build transcript
     transcript_parts = ["=== Debate Transcript ===\n"]
@@ -363,12 +387,11 @@ async def generate_recommendation(
             debate_transcript = hint + debate_transcript
 
     credential = DefaultAzureCredential()
-    async with AzureAIClient(
-        project_endpoint=settings.FOUNDRY_PROJECT_ENDPOINT,
-        model_deployment_name=settings.FOUNDRY_MODEL_DEPLOYMENT_NAME,
+    async with AzureOpenAIChatClient(
+        endpoint=settings.FOUNDRY_OPENAI_ENDPOINT,
+        deployment_name=settings.FOUNDRY_MODEL_DEPLOYMENT_NAME,
         credential=credential,
     ).as_agent(
-        name=f"Synthesizer-{doc_type}",
         instructions=system_prompt,
     ) as agent:
         stream = agent.run(debate_transcript, stream=True)
@@ -391,7 +414,7 @@ async def generate_recommendation_streaming(
         yield "No debate rounds found."
         return
 
-    system_prompt = _DOC_TYPE_PROMPTS.get(doc_type, _SYNTHESIS_SYSTEM_PROMPT)
+    system_prompt = _GROUNDING_CONSTRAINT + _DOC_TYPE_PROMPTS.get(doc_type, _SYNTHESIS_SYSTEM_PROMPT)
 
     transcript_parts = ["=== Debate Transcript ===\n"]
     for r in round_history:
@@ -412,13 +435,63 @@ async def generate_recommendation_streaming(
             debate_transcript = hint + debate_transcript
 
     credential = DefaultAzureCredential()
-    async with AzureAIClient(
-        project_endpoint=settings.FOUNDRY_PROJECT_ENDPOINT,
-        model_deployment_name=settings.FOUNDRY_MODEL_DEPLOYMENT_NAME,
+    async with AzureOpenAIChatClient(
+        endpoint=settings.FOUNDRY_OPENAI_ENDPOINT,
+        deployment_name=settings.FOUNDRY_MODEL_DEPLOYMENT_NAME,
         credential=credential,
     ).as_agent(
-        name=f"Synthesizer-{doc_type}",
         instructions=system_prompt,
+    ) as agent:
+        stream = agent.run(debate_transcript, stream=True)
+        async for chunk in stream:
+            if chunk.text:
+                yield chunk.text
+        await stream.get_final_response()
+
+    await credential.close()
+
+
+_DIAGRAM_SYSTEM_PROMPT = """\
+You are a technical architect. Based on the debate transcript provided, generate a
+Mermaid architecture diagram (`flowchart TD`) that captures the agreed observability
+solution architecture for OGE.
+
+Rules:
+- Output ONLY valid Mermaid markup, starting with `flowchart TD` on the very first line.
+- Do NOT wrap in markdown fences (no ```mermaid``` blocks).
+- Use clear, short node labels (max 4 words each).
+- Include at least: data sources, collection, transport, storage, visualization, alerting.
+- Add subgraphs for logical layers if helpful.
+- Keep it focused; maximum ~30 nodes.
+"""
+
+
+async def generate_architecture_diagram_streaming(round_history: list[dict]):
+    """Async generator yielding Mermaid markup chunks."""
+    if not round_history:
+        yield "flowchart TD\n  A[No debate rounds] --> B[Run debate first]"
+        return
+
+    transcript_parts = ["=== Debate Transcript ===\n"]
+    for r in round_history:
+        transcript_parts.append(f"--- Round {r['round_number']} ---")
+        transcript_parts.append(f"PM: {r['pm_message']}\n")
+        for resp in r.get("csa_responses", {}).values():
+            transcript_parts.append(f"{resp['display_name']}:\n{resp['text']}\n")
+        dir_resp = r.get("dir_response", {})
+        if dir_resp:
+            transcript_parts.append(
+                f"{dir_resp.get('display_name', 'Dir CSA')} (Director Review):\n{dir_resp['text']}\n"
+            )
+    debate_transcript = "\n".join(transcript_parts)
+
+    credential = DefaultAzureCredential()
+    async with AzureOpenAIChatClient(
+        endpoint=settings.FOUNDRY_OPENAI_ENDPOINT,
+        deployment_name=settings.FOUNDRY_MODEL_DEPLOYMENT_NAME,
+        credential=credential,
+    ).as_agent(
+        instructions=_DIAGRAM_SYSTEM_PROMPT,
     ) as agent:
         stream = agent.run(debate_transcript, stream=True)
         async for chunk in stream:

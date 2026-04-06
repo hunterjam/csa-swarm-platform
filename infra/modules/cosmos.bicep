@@ -11,9 +11,6 @@ param databaseName string = 'csa_swarm'
 @description('Container name')
 param containerName string = 'swarm'
 
-@description('Principal IDs that need Cosmos DB Data Contributor access')
-param principalIds array = []
-
 // ── Cosmos DB account (serverless, NoSQL) ───────────────────────────────
 resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-02-15-preview' = {
   name: accountName
@@ -33,6 +30,7 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-02-15-preview
       defaultConsistencyLevel: 'Session'
     }
     disableLocalAuth: true  // enforce Entra ID / managed identity
+    publicNetworkAccess: 'Enabled'
   }
 }
 
@@ -63,19 +61,11 @@ resource cosmosContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/con
   }
 }
 
-// Cosmos DB Built-in Data Contributor role
-var cosmosDataContributorRoleId = '00000000-0000-0000-0000-000000000002'
-
-resource cosmosRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-02-15-preview' = [for (principalId, i) in principalIds: {
-  parent: cosmosAccount
-  name: guid(cosmosAccount.id, principalId, cosmosDataContributorRoleId)
-  properties: {
-    roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosDataContributorRoleId}'
-    principalId: principalId
-    scope: cosmosAccount.id
-  }
-}]
+// ── Cosmos DB Built-in Data Contributor role assignment is handled in main.bicep
+// to avoid a circular dependency with the backend module.
 
 output cosmosEndpoint string = cosmosAccount.properties.documentEndpoint
 output cosmosDatabaseName string = databaseName
 output cosmosContainerName string = containerName
+output cosmosAccountId string = cosmosAccount.id
+output cosmosAccountName string = cosmosAccount.name

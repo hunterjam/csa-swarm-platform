@@ -1,37 +1,32 @@
 // src/lib/auth.ts
-// MSAL PublicClientApplication configuration
+// MSAL is initialized at runtime via MsalProvider — see MsalProvider.tsx.
+// NEXT_PUBLIC_* vars are baked in at Docker build time, before the Entra app
+// registration exists. We use a store object so MsalProvider can set the
+// instance and api.ts can read it without stale closure issues.
 
-import { Configuration, LogLevel, PublicClientApplication } from '@azure/msal-browser';
+import type { PublicClientApplication } from '@azure/msal-browser';
 
-const AUTH_ENABLED = process.env.NEXT_PUBLIC_AUTH_ENABLED !== 'false';
+// AUTH_ENABLED: NEXT_PUBLIC_AUTH_ENABLED is not set at build time, so
+// `undefined !== 'false'` → true. Auth is always on in deployed containers.
+export const AUTH_ENABLED = process.env.NEXT_PUBLIC_AUTH_ENABLED !== 'false';
 
-const msalConfig: Configuration = {
-  auth: {
-    clientId: process.env.NEXT_PUBLIC_ENTRA_CLIENT_ID ?? '',
-    authority: `https://login.microsoftonline.com/${process.env.NEXT_PUBLIC_ENTRA_TENANT_ID ?? 'common'}`,
-    redirectUri: typeof window !== 'undefined' ? window.location.origin : '/',
-  },
-  cache: {
-    cacheLocation: 'sessionStorage',
-    storeAuthStateInCookie: false,
-  },
-  system: {
-    loggerOptions: {
-      loggerCallback: (level, message, containsPii) => {
-        if (containsPii) return;
-        if (level === LogLevel.Error) console.error('[MSAL]', message);
-      },
-      logLevel: LogLevel.Error,
-    },
-  },
+// Mutable store — MsalProvider calls _initMsal() at runtime after fetching config.
+export const msalStore: {
+  instance: PublicClientApplication | null;
+  loginRequest: { scopes: string[] };
+} = {
+  instance: null,
+  loginRequest: { scopes: [] },
 };
 
-export const msalInstance = AUTH_ENABLED
-  ? new PublicClientApplication(msalConfig)
-  : null;
+export function _initMsal(
+  instance: PublicClientApplication,
+  loginReq: { scopes: string[] },
+) {
+  msalStore.instance = instance;
+  msalStore.loginRequest = loginReq;
+}
 
-export const loginRequest = {
-  scopes: [`api://${process.env.NEXT_PUBLIC_ENTRA_CLIENT_ID}/access_as_user`],
-};
-
-export { AUTH_ENABLED };
+// Backward-compat — types are correct now so api.ts compiles.
+export const msalInstance: PublicClientApplication | null = null;
+export const loginRequest: { scopes: string[] } = { scopes: [] };

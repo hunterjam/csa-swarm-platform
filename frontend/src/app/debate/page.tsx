@@ -1,10 +1,64 @@
 // src/app/debate/page.tsx
 'use client';
 
-import { useEffect, useRef, useState, Suspense } from 'react';
+import { useEffect, useRef, useState, Suspense, memo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api, streamDebateRound } from '@/lib/api';
 import type { Round, DebateEvent, CsaResponse } from '@/lib/types';
+import { useSession } from '@/lib/session-context';
+import { Markdown } from '@/components/Markdown';
+
+// ── Starter prompts ─────────────────────────────────────────────────────
+const STARTER_PROMPTS: { label: string; text: string }[] = [
+  {
+    label: 'Baseline Azure monitoring architecture',
+    text:
+      "What should the baseline Azure-native monitoring architecture look like for OGE customers? " +
+      "Focus on AMBA, Azure Monitor, and Log Analytics as the foundation, and define what 'done' looks like for the MVP.",
+  },
+  {
+    label: 'Alert routing & operational handoff',
+    text:
+      "How should alerts be routed from Azure Monitor to field operations teams? " +
+      "Define the handoff process between automated alerting and human escalation, including on-call integration patterns.",
+  },
+  {
+    label: 'Multi-region & edge observability',
+    text:
+      "How do we extend observability to edge sites and remote field locations with intermittent connectivity? " +
+      "What are the data collection and buffering patterns for upstream production environments?",
+  },
+  {
+    label: 'IaC deployment strategy',
+    text:
+      "What Infrastructure-as-Code approach should we adopt for the observability accelerator? " +
+      "Compare Bicep vs. Terraform for this OGE use case and recommend a reusable module structure.",
+  },
+  {
+    label: 'Third-party tool integration',
+    text:
+      "Several OGE customers already use Splunk or Datadog. How should the accelerator handle integration with " +
+      "existing third-party observability tools while keeping Azure-native as the baseline?",
+  },
+  {
+    label: 'Cost optimization & governance',
+    text:
+      "What are the main cost drivers in Azure Monitor and Log Analytics at OGE scale? " +
+      "Recommend a data retention and sampling strategy that balances observability completeness with cost governance.",
+  },
+  {
+    label: 'Security & compliance requirements',
+    text:
+      "What security and compliance controls must be baked into the observability accelerator for OGE? " +
+      "Consider NERC CIP, data sovereignty for international sites, and RBAC for sensitive operational data.",
+  },
+  {
+    label: 'SRE Agent enablement',
+    text:
+      "How do we layer SRE Agent capabilities on top of the Azure-native baseline? " +
+      "Define the trigger conditions, autonomy boundaries, and human-in-the-loop escalation paths for automated remediation.",
+  },
+];
 
 // ── Role display config ──────────────────────────────────────────────────
 const ROLE_COLORS: Record<string, string> = {
@@ -14,7 +68,7 @@ const ROLE_COLORS: Record<string, string> = {
   dir_csa: 'border-orange-400 bg-orange-50',
 };
 
-function RoundCard({ round }: { round: Round }) {
+const RoundCard = memo(function RoundCard({ round }: { round: Round }) {
   return (
     <div className="border rounded p-4 bg-white space-y-3">
       <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">
@@ -25,33 +79,43 @@ function RoundCard({ round }: { round: Round }) {
         <p className="text-sm">{round.pm_message}</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {Object.values(round.csa_responses).map(r => (
-          <AgentCard key={r.role} resp={r} />
+        {Object.entries(round.csa_responses).map(([roleKey, r]) => (
+          <AgentCard key={roleKey} resp={r} />
         ))}
       </div>
       <AgentCard resp={round.dir_response} full />
     </div>
   );
-}
+});
 
-function AgentCard({ resp, full }: { resp: CsaResponse; full?: boolean }) {
+const AgentCard = memo(function AgentCard({ resp, full }: { resp: CsaResponse; full?: boolean }) {
   return (
     <div className={`border-l-4 rounded p-3 ${ROLE_COLORS[resp.role] ?? 'border-gray-300 bg-gray-50'} ${full ? 'col-span-3' : ''}`}>
-      <p className="text-xs font-bold text-gray-600 mb-1">{resp.display_name}</p>
-      <p className="text-sm whitespace-pre-wrap">{resp.text}</p>
+      <p className="text-xs font-bold text-gray-600 mb-2">{resp.display_name}</p>
+      <Markdown size="compact">{resp.text}</Markdown>
     </div>
   );
-}
+});
 
 function DebateContent() {
   const params = useSearchParams();
-  const sessionId = params.get('session') ?? '';
+  const { activeSessionId, setActiveSessionId } = useSession();
+  const sessionId = params.get('session') ?? activeSessionId;
+
+  // Sync context whenever the URL carries an explicit session param
+  useEffect(() => {
+    const p = params.get('session');
+    if (p) setActiveSessionId(p);
+  }, [params]);
 
   const [rounds, setRounds] = useState<Round[]>([]);
   const [pm, setPm] = useState('');
+  const [selectedStarter, setSelectedStarter] = useState('');
   const [running, setRunning] = useState(false);
   const [status, setStatus] = useState('');
   const [dirBuffer, setDirBuffer] = useState('');
+  const dirBufferRef = useRef('');
+  const dirFlushRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [pendingCsa, setPendingCsa] = useState<Record<string, CsaResponse>>({});
   const [error, setError] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -70,9 +134,16 @@ function DebateContent() {
     setRunning(true);
     setError('');
     setDirBuffer('');
+    dirBufferRef.current = '';
     setPendingCsa({});
     setStatus('CSA agents thinking…');
     scrollBottom();
+
+    // Flush accumulated chunks to state at most every 150ms to avoid
+    // blocking React's message-channel scheduler with full markdown re-parses.
+    dirFlushRef.current = setInterval(() => {
+      setDirBuffer(dirBufferRef.current);
+    }, 150);
 
     try {
       await streamDebateRound(sessionId, pm.trim(), (raw) => {
@@ -84,10 +155,12 @@ function DebateContent() {
           }));
           setStatus('Dir CSA reviewing…');
         } else if (evt.type === 'dir_chunk') {
-          setDirBuffer(prev => prev + evt.text);
+          dirBufferRef.current += evt.text;  // accumulate without triggering render
         } else if (evt.type === 'round_complete') {
+          if (dirFlushRef.current) { clearInterval(dirFlushRef.current); dirFlushRef.current = null; }
           setRounds(prev => [...prev, evt.round]);
           setDirBuffer('');
+          dirBufferRef.current = '';
           setPendingCsa({});
           setStatus('');
           scrollBottom();
@@ -99,8 +172,10 @@ function DebateContent() {
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
+      if (dirFlushRef.current) { clearInterval(dirFlushRef.current); dirFlushRef.current = null; }
       setRunning(false);
       setPm('');
+      setSelectedStarter('');
     }
   }
 
@@ -124,8 +199,8 @@ function DebateContent() {
           {Object.values(pendingCsa).map(r => <AgentCard key={r.role} resp={r} />)}
           {dirBuffer && (
             <div className={`border-l-4 rounded p-3 ${ROLE_COLORS['dir_csa']}`}>
-              <p className="text-xs font-bold text-gray-600 mb-1">Dir CSA (streaming…)</p>
-              <p className="text-sm whitespace-pre-wrap">{dirBuffer}</p>
+              <p className="text-xs font-bold text-gray-600 mb-2">Dir CSA (streaming…)</p>
+              <Markdown size="compact">{dirBuffer}</Markdown>
             </div>
           )}
         </div>
@@ -133,26 +208,70 @@ function DebateContent() {
 
       {error && <p className="text-red-600 text-sm">{error}</p>}
 
-      {/* PM input */}
-      <div className="flex gap-3 mt-2">
-        <textarea
-          value={pm}
-          onChange={e => setPm(e.target.value)}
-          placeholder="Enter your PM message…"
-          rows={3}
-          disabled={running}
-          className="border rounded px-3 py-2 flex-1 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-600 disabled:opacity-50"
-        />
-        <button
-          onClick={runRound}
-          disabled={running || !pm.trim()}
-          className="self-end bg-brand-600 text-white px-5 py-2 rounded text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
-        >
-          {running ? 'Running…' : 'Run Round'}
-        </button>
+      {/* Starter prompts + PM input */}
+      <div className="space-y-2 mt-2">
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedStarter}
+            onChange={e => {
+              const val = e.target.value;
+              setSelectedStarter(val);
+              if (val) setPm(val);
+            }}
+            disabled={running}
+            className="border rounded px-3 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-600 disabled:opacity-50 flex-1 max-w-xs"
+          >
+            <option value="">Quick-start prompt…</option>
+            {STARTER_PROMPTS.map(p => (
+              <option key={p.label} value={p.text}>{p.label}</option>
+            ))}
+          </select>
+          {selectedStarter && (
+            <button
+              onClick={() => { setSelectedStarter(''); setPm(''); }}
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
+        <div className="flex gap-3">
+          <textarea
+            value={pm}
+            onChange={e => setPm(e.target.value)}
+            placeholder="Enter your PM message…"
+            rows={3}
+            disabled={running}
+            className="border rounded px-3 py-2 flex-1 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-600 disabled:opacity-50"
+          />
+          <button
+            onClick={runRound}
+            disabled={running || !pm.trim()}
+            className="self-end bg-brand-600 text-white px-5 py-2 rounded text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+          >
+            {running ? 'Running…' : 'Run Round'}
+          </button>
+        </div>
       </div>
 
       <div ref={bottomRef} />
+
+      {/* Wizard footer */}
+      <div className="flex justify-between pt-2 border-t mt-4">
+        <a
+          href={sessionId ? `/setup?session=${sessionId}` : '/setup'}
+          className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2 rounded border hover:bg-gray-50 transition-colors"
+        >
+          ← Setup
+        </a>
+        <a
+          href={sessionId ? `/history?session=${sessionId}` : '/history'}
+          className="bg-brand-600 text-white px-6 py-2 rounded text-sm font-medium hover:bg-brand-700 transition-colors"
+        >
+          Next: History →
+        </a>
+      </div>
     </div>
   );
 }

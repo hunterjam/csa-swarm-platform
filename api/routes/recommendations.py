@@ -24,7 +24,7 @@ from pydantic import BaseModel
 from api.auth import get_current_user
 from api.deps import get_store
 from swarm.cosmos_store import CosmosStore
-from swarm.orchestrator import DOC_TYPES, generate_recommendation_streaming
+from swarm.orchestrator import DOC_TYPES, generate_recommendation_streaming, generate_architecture_diagram_streaming
 
 router = APIRouter(tags=["recommendations"])
 
@@ -122,4 +122,67 @@ async def get_recommendation(
     match = next((r for r in recs if r.get("doc_type") == doc_type), None)
     if not match:
         raise HTTPException(status_code=404, detail="Recommendation not found")
+    return match
+
+
+async def _diagram_stream(
+    session_id: str,
+    store: CosmosStore,
+) -> AsyncGenerator[str, None]:
+    full_text: list[str] = []
+    try:
+        async for chunk in generate_architecture_diagram_streaming(
+            round_history=await store.get_rounds(session_id=session_id),
+        ):
+            full_text.append(chunk)
+            yield _sse({"type": "chunk", "text": chunk})
+
+        diagram_source = "".join(full_text)
+        # Strip any accidental markdown fences from the model output
+        import re
+        diagram_source = re.sub(r"```(?:mermaid)?\s*", "", diagram_source).strip()
+
+        rec = await store.save_recommendation(
+            session_id=session_id,
+            doc_type="architecture_diagram",
+            content=diagram_source,
+        )
+        yield _sse({"type": "done", "diagram": diagram_source, "rec": rec})
+
+    except Exception as exc:  # noqa: BLE001
+        yield _sse({"type": "error", "message": str(exc)})
+    finally:
+        yield "data: [DONE]\n\n"
+
+
+@router.post("/api/sessions/{session_id}/diagram")
+async def generate_diagram(
+    session_id: str,
+    user: dict[str, Any] = Depends(get_current_user),
+    store: CosmosStore = Depends(get_store),
+) -> StreamingResponse:
+    session = await store.get_session(session_id=session_id, user_id=user["sub"])
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return StreamingResponse(
+        _diagram_stream(session_id=session_id, store=store),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@router.get("/api/sessions/{session_id}/diagram")
+async def get_diagram(
+    session_id: str,
+    user: dict[str, Any] = Depends(get_current_user),
+    store: CosmosStore = Depends(get_store),
+) -> dict:
+    session = await store.get_session(session_id=session_id, user_id=user["sub"])
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    recs = await store.get_recommendations(session_id=session_id)
+    match = next((r for r in recs if r.get("doc_type") == "architecture_diagram"), None)
+    if not match:
+        raise HTTPException(status_code=404, detail="Diagram not found")
     return match

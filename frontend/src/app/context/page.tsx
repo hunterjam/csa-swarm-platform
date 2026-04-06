@@ -5,14 +5,30 @@ import { useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import type { GroundingSource } from '@/lib/types';
+import { useSession } from '@/lib/session-context';
 
 function ContextContent() {
   const params = useSearchParams();
-  const sessionId = params.get('session') ?? '';
+  const { activeSessionId, setActiveSessionId } = useSession();
+  const sessionId = params.get('session') ?? activeSessionId;
+
+  // Sync context whenever the URL carries an explicit session param
+  useEffect(() => {
+    const p = params.get('session');
+    if (p) setActiveSessionId(p);
+  }, [params]);
 
   const [sources, setSources] = useState<GroundingSource[]>([]);
+  const [tab, setTab] = useState<'file' | 'url' | 'text'>('file');
   const [uploading, setUploading] = useState(false);
+  // file tab
   const [label, setLabel] = useState('');
+  // url tab
+  const [urlInput, setUrlInput] = useState('');
+  const [urlLabel, setUrlLabel] = useState('');
+  // paste tab
+  const [pasteText, setPasteText] = useState('');
+  const [pasteLabel, setPasteLabel] = useState('');
   const [error, setError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -44,7 +60,39 @@ function ContextContent() {
     }
   }
 
-  async function handleDelete(pos: number) {
+  async function handleAddUrl() {
+    if (!urlInput.trim() || !sessionId) return;
+    setUploading(true);
+    setError('');
+    try {
+      await api.context.addUrl(sessionId, urlInput.trim(), urlLabel.trim());
+      setUrlInput('');
+      setUrlLabel('');
+      await load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleAddText() {
+    if (!pasteText.trim() || !sessionId) return;
+    setUploading(true);
+    setError('');
+    try {
+      await api.context.addText(sessionId, pasteText.trim(), pasteLabel.trim() || 'Pasted text');
+      setPasteText('');
+      setPasteLabel('');
+      await load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleDelete(pos: string) {
     if (!sessionId) return;
     try {
       await api.context.delete(sessionId, pos);
@@ -54,7 +102,7 @@ function ContextContent() {
     }
   }
 
-  async function handleTogglePin(pos: number) {
+  async function handleTogglePin(pos: string) {
     if (!sessionId) return;
     try {
       const updated = await api.context.togglePin(sessionId, pos);
@@ -72,28 +120,100 @@ function ContextContent() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-brand-900">Context / Grounding</h1>
 
+      {/* Tab selector */}
+      <div className="border-b flex gap-0">
+        {(['file', 'url', 'text'] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === t
+                ? 'border-brand-600 text-brand-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {t === 'file' ? '📄 Upload File' : t === 'url' ? '🔗 URL' : '📋 Paste Text'}
+          </button>
+        ))}
+      </div>
+
       {/* Upload form */}
       <div className="border rounded p-4 bg-white space-y-3">
-        <p className="text-sm font-medium text-gray-700">Upload grounding document</p>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".txt,.md,.csv,.pdf,.docx,.yaml,.json"
-          className="text-sm file:mr-3 file:rounded file:border-0 file:bg-brand-600 file:text-white file:px-3 file:py-1 file:text-sm file:cursor-pointer hover:file:bg-brand-700"
-        />
-        <input
-          value={label}
-          onChange={e => setLabel(e.target.value)}
-          placeholder="Label (optional)"
-          className="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
-        />
-        <button
-          onClick={handleUpload}
-          disabled={uploading}
-          className="bg-brand-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
-        >
-          {uploading ? 'Uploading…' : 'Upload'}
-        </button>
+        {tab === 'file' && (
+          <>
+            <p className="text-sm font-medium text-gray-700">Upload grounding document</p>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".txt,.md,.csv,.pdf,.docx,.yaml,.json"
+              className="text-sm file:mr-3 file:rounded file:border-0 file:bg-brand-600 file:text-white file:px-3 file:py-1 file:text-sm file:cursor-pointer hover:file:bg-brand-700"
+            />
+            <input
+              value={label}
+              onChange={e => setLabel(e.target.value)}
+              placeholder="Label (optional)"
+              className="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+            />
+            <button
+              onClick={handleUpload}
+              disabled={uploading}
+              className="bg-brand-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+            >
+              {uploading ? 'Uploading…' : 'Upload'}
+            </button>
+          </>
+        )}
+
+        {tab === 'url' && (
+          <>
+            <p className="text-sm font-medium text-gray-700">Fetch grounding content from a URL</p>
+            <input
+              value={urlInput}
+              onChange={e => setUrlInput(e.target.value)}
+              placeholder="https://…"
+              className="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+            />
+            <input
+              value={urlLabel}
+              onChange={e => setUrlLabel(e.target.value)}
+              placeholder="Label (optional)"
+              className="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+            />
+            <button
+              onClick={handleAddUrl}
+              disabled={uploading || !urlInput.trim()}
+              className="bg-brand-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+            >
+              {uploading ? 'Fetching…' : 'Fetch & Add'}
+            </button>
+          </>
+        )}
+
+        {tab === 'text' && (
+          <>
+            <p className="text-sm font-medium text-gray-700">Paste text directly</p>
+            <input
+              value={pasteLabel}
+              onChange={e => setPasteLabel(e.target.value)}
+              placeholder="Label (e.g. Customer requirements)"
+              className="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+            />
+            <textarea
+              value={pasteText}
+              onChange={e => setPasteText(e.target.value)}
+              placeholder="Paste your text here…"
+              rows={6}
+              className="border rounded px-3 py-2 w-full text-sm resize-y focus:outline-none focus:ring-2 focus:ring-brand-600"
+            />
+            <button
+              onClick={handleAddText}
+              disabled={uploading || !pasteText.trim()}
+              className="bg-brand-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+            >
+              {uploading ? 'Adding…' : 'Add Text'}
+            </button>
+          </>
+        )}
       </div>
 
       {error && <p className="text-red-600 text-sm">{error}</p>}
@@ -126,6 +246,22 @@ function ContextContent() {
           ))}
         </ul>
       )}
+
+      {/* Wizard footer */}
+      <div className="flex justify-between pt-2 border-t">
+        <a
+          href="/"
+          className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2 rounded border hover:bg-gray-50 transition-colors"
+        >
+          ← Sessions
+        </a>
+        <a
+          href={sessionId ? `/setup?session=${sessionId}` : '/setup'}
+          className="bg-brand-600 text-white px-6 py-2 rounded text-sm font-medium hover:bg-brand-700 transition-colors"
+        >
+          Next: Setup →
+        </a>
+      </div>
     </div>
   );
 }

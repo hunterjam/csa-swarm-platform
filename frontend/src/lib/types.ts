@@ -6,6 +6,8 @@ export interface Session {
   title: string;
   created_at: string;
   updated_at: string;
+  agent_config?: AgentConfig;
+  model?: string | null;
 }
 
 export interface CsaResponse {
@@ -34,7 +36,7 @@ export interface Recommendation {
 export interface GroundingSource {
   id: string;
   session_id: string;
-  position: number;
+  position: string;
   filename: string;
   label: string;
   content: string;
@@ -47,6 +49,24 @@ export interface DocType {
   label: string;
   icon: string;
   filename: string;
+}
+
+// ── Role / agent config ──────────────────────────────────────────────────
+export interface RoleConfig {
+  display_name: string;
+  role_type?: string;
+  domain: string;
+  lens: string;
+  system_prompt: string;
+}
+
+/** Keys → partial RoleConfig overrides stored per session */
+export type AgentConfig = Record<string, Partial<RoleConfig>>;
+
+export interface AgentConfigResponse {
+  defaults: Record<string, RoleConfig>;
+  overrides: AgentConfig;
+  merged: Record<string, RoleConfig>;
 }
 
 // ── SSE event shapes (debate stream) ────────────────────────────────────

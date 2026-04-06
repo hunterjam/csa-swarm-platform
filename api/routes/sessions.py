@@ -26,6 +26,14 @@ class CreateSessionRequest(BaseModel):
     title: str = "New Session"
 
 
+# Allowed model deployment names
+_ALLOWED_MODELS = {"gpt-4o", "gpt-4.1", "gpt-4.1-mini", "o4-mini", "gpt-5", "gpt-5.1"}
+
+
+class PatchSessionRequest(BaseModel):
+    model: str | None = None
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_session(
     body: CreateSessionRequest,
@@ -71,3 +79,21 @@ async def delete_session(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     await store.delete_session(session_id=session_id)
+
+
+@router.patch("/{session_id}")
+async def patch_session(
+    session_id: str,
+    body: PatchSessionRequest,
+    user: dict[str, Any] = Depends(get_current_user),
+    store: CosmosStore = Depends(get_store),
+) -> dict:
+    session = await store.get_session(session_id=session_id, user_id=user["sub"])
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if body.model is not None and body.model not in _ALLOWED_MODELS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown model '{body.model}'. Allowed: {sorted(_ALLOWED_MODELS)}",
+        )
+    return await store.update_session_model(session_id=session_id, model=body.model)

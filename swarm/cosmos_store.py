@@ -162,7 +162,7 @@ async def save_recommendation(session_id: str, doc_type: str, content: str) -> d
     return doc
 
 
-async def get_recommendations(session_id: str) -> dict[str, str]:
+async def get_recommendations(session_id: str) -> list[dict]:
     container = await _get_container()
     query = "SELECT * FROM c WHERE c.type = 'recommendation' AND c.session_id = @sid"
     items = container.query_items(
@@ -170,7 +170,7 @@ async def get_recommendations(session_id: str) -> dict[str, str]:
         parameters=[{"name": "@sid", "value": session_id}],
         partition_key=session_id,
     )
-    return {item["doc_type"]: item["content"] async for item in items}
+    return [item async for item in items]
 
 
 # ── Grounding sources ─────────────────────────────────────────────────────
@@ -199,10 +199,24 @@ async def save_grounding_source(
     return doc
 
 
+def _normalize_grounding_source(doc: dict) -> dict:
+    """Map Cosmos field names to the shape the frontend GroundingSource type expects."""
+    return {
+        "id": doc.get("id", ""),
+        "session_id": doc.get("session_id", ""),
+        "position": doc.get("position", ""),
+        "filename": doc.get("source_type", doc.get("filename", "")),
+        "label": doc.get("name", doc.get("label", "")),
+        "content": doc.get("content", ""),
+        "pinned": doc.get("pinned", False),
+        "created_at": doc.get("created_at", ""),
+    }
+
+
 async def get_grounding_sources(session_id: str) -> list[dict]:
     container = await _get_container()
     query = (
-        "SELECT c.id, c.position, c.name, c.source_type, c.pinned, c.created_at "
+        "SELECT c.id, c.position, c.name, c.source_type, c.content, c.pinned, c.created_at, c.session_id "
         "FROM c WHERE c.type = 'grounding' AND c.session_id = @sid "
         "ORDER BY c.created_at ASC"
     )
@@ -211,7 +225,7 @@ async def get_grounding_sources(session_id: str) -> list[dict]:
         parameters=[{"name": "@sid", "value": session_id}],
         partition_key=session_id,
     )
-    return [item async for item in items]
+    return [_normalize_grounding_source(item) async for item in items]
 
 
 async def get_grounding_block(session_id: str) -> str:
@@ -247,3 +261,156 @@ async def toggle_grounding_pin(session_id: str, position: str) -> dict:
     )
     item["pinned"] = not item.get("pinned", False)
     return await container.replace_item(item=item["id"], body=item)
+
+
+# ── CosmosStore class (used by app.py lifespan + FastAPI deps) ────────────
+
+def _normalize_session(doc: dict) -> dict:
+    """
+    Remap a raw Cosmos session document to the shape the frontend expects:
+      - id       → the plain UUID (from session_id), not the "session:" prefixed CosmosDB id
+      - title    → doc["name"]  (Cosmos stores "name"; frontend Session type uses "title")
+    """
+    return {
+        "id": doc.get("session_id", doc["id"]),
+        "user_id": doc.get("user_id", ""),
+        "title": doc.get("name", doc.get("title", "")),
+        "created_at": doc.get("created_at", ""),
+        "updated_at": doc.get("updated_at", doc.get("created_at", "")),
+        "agent_config": doc.get("agent_config", {}),
+        "model": doc.get("model", None),
+    }
+
+
+async def update_agent_config(session_id: str, agent_config: dict) -> dict:
+    """Overwrite the agent_config map on a session document."""
+    container = await _get_container()
+    doc = await container.read_item(
+        item=f"session:{session_id}", partition_key=session_id
+    )
+    doc["agent_config"] = agent_config
+    updated = await container.replace_item(item=doc["id"], body=doc)
+    return _normalize_session(updated)
+
+
+async def update_session_model(session_id: str, model: str | None) -> dict:
+    """Update the model override for a session."""
+    container = await _get_container()
+    doc = await container.read_item(
+        item=f"session:{session_id}", partition_key=session_id
+    )
+    doc["model"] = model
+    doc["updated_at"] = _now_iso()
+    updated = await container.replace_item(item=doc["id"], body=doc)
+    return _normalize_session(updated)
+
+
+class CosmosStore:
+    """
+    Thin class wrapper around the module-level Cosmos helpers.
+    Provides the interface expected by FastAPI routes and the app lifespan.
+    """
+
+    async def ensure_infrastructure(self) -> None:
+        await ensure_infrastructure()
+
+    async def close(self) -> None:
+        global _client, _container
+        if _client is not None:
+            await _client.close()
+            _client = None
+        _container = None
+
+    # ── Sessions ──────────────────────────────────────────────────────────
+
+    async def create_session(
+        self, session_id: str, user_id: str, title: str = "New Session"
+    ) -> dict:
+        container = await _get_container()
+        doc = {
+            "id": f"session:{session_id}",
+            "type": "session",
+            "session_id": session_id,
+            "user_id": user_id,
+            "name": title,
+            "created_at": _now_iso(),
+            "agent_config": {},
+        }
+        await container.create_item(body=doc)
+        return _normalize_session(doc)
+
+    async def list_sessions(self, user_id: str) -> list[dict]:
+        docs = await list_sessions(user_id=user_id)
+        return [_normalize_session(d) for d in docs]
+
+    async def get_session(self, session_id: str, user_id: str) -> dict | None:
+        doc = await get_session(session_id=session_id)
+        if doc is None:
+            return None
+        # Enforce per-user isolation
+        if doc.get("user_id") != user_id:
+            return None
+        return _normalize_session(doc)
+
+    async def delete_session(self, session_id: str) -> None:
+        await delete_session(session_id=session_id)
+
+    # ── Debate rounds ──────────────────────────────────────────────────────
+
+    async def save_round(self, session_id: str, round_data: dict) -> dict:
+        return await save_round(session_id=session_id, round_data=round_data)
+
+    async def get_rounds(self, session_id: str) -> list[dict]:
+        return await get_rounds(session_id=session_id)
+
+    # ── Recommendations ────────────────────────────────────────────────────
+
+    async def save_recommendation(
+        self, session_id: str, doc_type: str, content: str
+    ) -> dict:
+        return await save_recommendation(
+            session_id=session_id, doc_type=doc_type, content=content
+        )
+
+    async def get_recommendations(self, session_id: str) -> list[dict]:
+        return await get_recommendations(session_id=session_id)
+
+    # ── Grounding sources ──────────────────────────────────────────────────
+
+    async def save_grounding_source(
+        self,
+        session_id: str,
+        filename: str,
+        label: str,
+        content: str,
+    ) -> dict:
+        # label  → displayed name; filename → source_type for categorisation
+        doc = await save_grounding_source(
+            session_id=session_id,
+            name=label,
+            source_type=filename,
+            content=content,
+        )
+        return _normalize_grounding_source(doc)
+
+    async def get_grounding_sources(self, session_id: str) -> list[dict]:
+        return await get_grounding_sources(session_id=session_id)  # already normalized
+
+    async def get_grounding_block(self, session_id: str) -> str:
+        return await get_grounding_block(session_id=session_id)
+
+    async def delete_grounding_source(self, session_id: str, position: str) -> None:
+        await delete_grounding_source(session_id=session_id, position=position)
+
+    async def toggle_grounding_pin(self, session_id: str, position: str) -> dict | None:  # noqa: E501
+        try:
+            doc = await toggle_grounding_pin(session_id=session_id, position=position)
+            return _normalize_grounding_source(doc)
+        except Exception:
+            return None
+
+    async def update_agent_config(self, session_id: str, agent_config: dict) -> dict:
+        return await update_agent_config(session_id=session_id, agent_config=agent_config)
+
+    async def update_session_model(self, session_id: str, model: str | None) -> dict:
+        return await update_session_model(session_id=session_id, model=model)

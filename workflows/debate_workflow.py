@@ -20,11 +20,14 @@ The FastAPI route converts these to `data: <json>\n\n` SSE messages.
 from __future__ import annotations
 
 import asyncio
-from typing import Any, AsyncGenerator
+from typing import TYPE_CHECKING, Any, AsyncGenerator
 
 from azure.identity.aio import DefaultAzureCredential
 
 from agents.role_agents import invoke_agent, load_roles, stream_agent_response
+
+if TYPE_CHECKING:
+    from swarm.cosmos_store import CosmosStore
 
 
 # ── Message builders (mirrors MVP orchestrator helpers) ──────────────────
@@ -83,25 +86,42 @@ def _build_dir_user_message(
         name = data.get("display_name", role_key)
         parts.append(f"\n{name}:\n{data.get('text', '')}")
     parts.append("\n=== END CSA RESPONSES ===")
-    parts.append(
-        "\nAs Director CSA, synthesize the above CSA inputs. "
-        "Follow your system prompt output format exactly."
-    )
+    parts.append("\nAs Director CSA, please synthesize the above CSA inputs.")
     return "\n".join(parts)
 
 
 # ── Core streaming orchestration ─────────────────────────────────────────
 
 async def run_round_streaming(
+    session_id: str,
     pm_message: str,
-    round_history: list[dict],
-    grounding_block: str = "",
+    store: "CosmosStore",
+    agent_config: dict | None = None,
+    model_name: str | None = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """
     Async generator that yields SSE event dicts for a single debate round.
+    Loads round history and grounding block from Cosmos automatically.
+    Optionally uses session-scoped agent_config to override default roles.
     Designed to be consumed by the FastAPI SSE endpoint.
     """
-    roles = load_roles()
+    # Load prior rounds + grounding from Cosmos
+    round_history = await store.get_rounds(session_id=session_id)
+    grounding_block = await store.get_grounding_block(session_id=session_id)
+
+    # Merge session-level role overrides on top of defaults
+    default_roles = load_roles()
+    if agent_config:
+        roles = {}
+        for key, default in default_roles.items():
+            override = agent_config.get(key, {})
+            roles[key] = {**default, **override} if override else default
+        # Include extra csa_* keys from agent_config not in defaults (user-added roles)
+        for key, val in agent_config.items():
+            if key.startswith("csa_") and key not in default_roles and isinstance(val, dict):
+                roles[key] = val
+    else:
+        roles = default_roles
     csa_keys = sorted(k for k in roles if k.startswith("csa_"))
     dir_key = "dir_csa"
 
@@ -112,7 +132,7 @@ async def run_round_streaming(
 
     async def _run_csa(key: str) -> tuple[str, dict]:
         role = roles[key]
-        text = await invoke_agent(key, role, csa_user_msg, credential)
+        text = await invoke_agent(key, role, csa_user_msg, credential, model_name=model_name)
         return key, {
             "display_name": role.get("display_name", key),
             "domain": role.get("domain", ""),
@@ -143,7 +163,7 @@ async def run_round_streaming(
     dir_chunks: list[str] = []
 
     try:
-        async for chunk_text in stream_agent_response(dir_key, dir_role, dir_user_msg, credential):
+        async for chunk_text in stream_agent_response(dir_key, dir_role, dir_user_msg, credential, model_name=model_name):
             dir_chunks.append(chunk_text)
             yield {"type": "dir_chunk", "role": dir_key, "text": chunk_text}
     except Exception as exc:
