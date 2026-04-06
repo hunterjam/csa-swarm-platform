@@ -1,0 +1,34 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Git
+.git/
+.gitignore
+
+# Env / secrets — never bake local dev values into images
+.env
+.env.*
+!.env.example
+frontend/.env.local
+frontend/.env.local.*
+
+# IDE
+.vscode/
+.idea/
+
+# Misc
+*.log
+.DS_Store
