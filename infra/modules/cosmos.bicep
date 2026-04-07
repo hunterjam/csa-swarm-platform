@@ -31,6 +31,7 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-02-15-preview
     }
     disableLocalAuth: true  // enforce Entra ID / managed identity
     publicNetworkAccess: 'Enabled'
+    networkAclBypass: 'AzureServices'  // allow all Azure-internal services (Container Apps, etc.)
   }
 }
 
