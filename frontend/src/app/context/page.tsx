@@ -21,6 +21,7 @@ function ContextContent() {
   const [sources, setSources] = useState<GroundingSource[]>([]);
   const [tab, setTab] = useState<'file' | 'url' | 'text'>('file');
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');  // e.g. "Uploading 2 of 5…"
   // file tab
   const [label, setLabel] = useState('');
   // url tab
@@ -44,12 +45,21 @@ function ContextContent() {
   useEffect(() => { load(); }, [sessionId]);
 
   async function handleUpload() {
-    const file = fileRef.current?.files?.[0];
-    if (!file || !sessionId) return;
+    const files = Array.from(fileRef.current?.files ?? []);
+    if (!files.length || !sessionId) return;
     setUploading(true);
+    setUploadProgress('');
     setError('');
     try {
-      await api.context.upload(sessionId, file, label || file.name);
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (files.length > 1) {
+          setUploadProgress(`Uploading ${i + 1} of ${files.length}…`);
+        }
+        // Use custom label only when a single file is selected
+        const fileLabel = files.length === 1 ? (label || file.name) : file.name;
+        await api.context.upload(sessionId, file, fileLabel);
+      }
       setLabel('');
       if (fileRef.current) fileRef.current.value = '';
       await load();
@@ -57,6 +67,7 @@ function ContextContent() {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setUploading(false);
+      setUploadProgress('');
     }
   }
 
@@ -145,13 +156,14 @@ function ContextContent() {
             <input
               ref={fileRef}
               type="file"
+              multiple
               accept=".txt,.md,.csv,.pdf,.docx,.yaml,.json"
               className="text-sm file:mr-3 file:rounded file:border-0 file:bg-brand-600 file:text-white file:px-3 file:py-1 file:text-sm file:cursor-pointer hover:file:bg-brand-700"
             />
             <input
               value={label}
               onChange={e => setLabel(e.target.value)}
-              placeholder="Label (optional)"
+              placeholder="Label (optional, single file only)"
               className="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
             />
             <button
@@ -159,7 +171,7 @@ function ContextContent() {
               disabled={uploading}
               className="bg-brand-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
             >
-              {uploading ? 'Uploading…' : 'Upload'}
+              {uploadProgress || (uploading ? 'Uploading…' : 'Upload')}
             </button>
           </>
         )}
