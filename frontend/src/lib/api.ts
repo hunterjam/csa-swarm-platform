@@ -101,6 +101,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ text, label }),
       }),
+    addGitHub: (sessionId: string, repo: string, pat: string, path?: string, label?: string) =>
+      _fetch<GroundingSource>(`/api/sessions/${sessionId}/context/github`, {
+        method: 'POST',
+        body: JSON.stringify({ repo, pat, path: path || '', label: label || '' }),
+      }),
   },
 
   recommendations: {

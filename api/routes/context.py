@@ -5,6 +5,7 @@ Grounding / context management:
   POST   /api/sessions/{session_id}/context        upload file
   POST   /api/sessions/{session_id}/context/url    fetch URL
   POST   /api/sessions/{session_id}/context/text   add pasted text
+  POST   /api/sessions/{session_id}/context/github fetch GitHub repo (PAT auth)
   GET    /api/sessions/{session_id}/context        list sources
   DELETE /api/sessions/{session_id}/context/{pos}  remove source
   PATCH  /api/sessions/{session_id}/context/{pos}/pin  toggle pin
@@ -34,6 +35,13 @@ class UrlRequest(BaseModel):
 class TextRequest(BaseModel):
     text: str
     label: str = "Pasted text"
+
+
+class GitHubRequest(BaseModel):
+    repo: str       # e.g. "owner/repo"
+    pat: str        # GitHub Personal Access Token
+    path: str = ""  # optional subdirectory or file path within the repo
+    label: str = ""
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -122,6 +130,100 @@ async def add_text_context(
         content=body.text.strip(),
     )
     return source
+
+
+@router.post("/github", status_code=status.HTTP_201_CREATED)
+async def add_github_context(
+    session_id: str,
+    body: GitHubRequest,
+    user: dict[str, Any] = Depends(get_current_user),
+    store: CosmosStore = Depends(get_store),
+) -> dict:
+    session = await store.get_session(session_id=session_id, user_id=user["sub"])
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    repo = body.repo.strip().strip("/")
+    if not re.match(r"^[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+$", repo):
+        raise HTTPException(status_code=400, detail="repo must be in owner/repo format")
+
+    gh_path = body.path.strip().strip("/")
+    api_url = f"https://api.github.com/repos/{repo}/contents/{gh_path}" if gh_path else f"https://api.github.com/repos/{repo}/contents"
+
+    headers = {
+        "Authorization": f"token {body.pat}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "CSA-Swarm-Platform/1.0",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.get(api_url, headers=headers)
+            if resp.status_code == 401:
+                raise HTTPException(status_code=401, detail="GitHub PAT is invalid or expired")
+            if resp.status_code == 404:
+                raise HTTPException(status_code=404, detail="GitHub repo or path not found (or PAT lacks access)")
+            resp.raise_for_status()
+            data = resp.json()
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"GitHub API error: {exc}") from exc
+
+    # data is either a single file object or a list of directory entries
+    if isinstance(data, dict) and data.get("type") == "file":
+        # Single file — decode base64 content
+        import base64
+        try:
+            text = base64.b64decode(data["content"].replace("\n", "")).decode("utf-8", errors="replace")
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail=f"Could not decode file content: {exc}") from exc
+        label = body.label or data.get("name", gh_path or repo)
+        source = await store.save_grounding_source(
+            session_id=session_id,
+            filename=data.get("path", gh_path),
+            label=label,
+            content=text,
+        )
+        return source
+
+    if isinstance(data, list):
+        # Directory listing — fetch all text files (≤ 500 KB total per file)
+        MAX_FILE_SIZE = 500_000  # bytes
+        TEXT_EXTENSIONS = {".txt", ".md", ".py", ".ts", ".tsx", ".js", ".jsx",
+                           ".yaml", ".yml", ".json", ".toml", ".csv", ".sh",
+                           ".tf", ".bicep", ".html", ".css", ".env.example",
+                           ".gitignore", ".dockerignore", "dockerfile"}
+        collected: list[str] = []
+
+        async with httpx.AsyncClient(timeout=20) as client:
+            for entry in data:
+                if entry.get("type") != "file":
+                    continue
+                name: str = entry.get("name", "")
+                size: int = entry.get("size", 0)
+                ext = "." + name.rsplit(".", 1)[-1].lower() if "." in name else name.lower()
+                if ext not in TEXT_EXTENSIONS:
+                    continue
+                if size > MAX_FILE_SIZE:
+                    continue
+                file_resp = await client.get(entry["download_url"], headers={"Authorization": f"token {body.pat}"}, timeout=20)
+                if file_resp.status_code == 200:
+                    collected.append(f"### {entry['path']}\n\n{file_resp.text}")
+
+        if not collected:
+            raise HTTPException(status_code=422, detail="No readable text files found in the specified path")
+
+        combined = "\n\n---\n\n".join(collected)
+        label = body.label or f"{repo}/{gh_path}" if gh_path else repo
+        source = await store.save_grounding_source(
+            session_id=session_id,
+            filename=f"github:{repo}/{gh_path}" if gh_path else f"github:{repo}",
+            label=label,
+            content=combined,
+        )
+        return source
+
+    raise HTTPException(status_code=422, detail="Unexpected GitHub API response format")
 
 
 @router.get("")

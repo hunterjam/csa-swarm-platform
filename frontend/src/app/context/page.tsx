@@ -19,7 +19,7 @@ function ContextContent() {
   }, [params]);
 
   const [sources, setSources] = useState<GroundingSource[]>([]);
-  const [tab, setTab] = useState<'file' | 'url' | 'text'>('file');
+  const [tab, setTab] = useState<'file' | 'url' | 'text' | 'github'>('file');
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');  // e.g. "Uploading 2 of 5…"
   // file tab
@@ -30,6 +30,11 @@ function ContextContent() {
   // paste tab
   const [pasteText, setPasteText] = useState('');
   const [pasteLabel, setPasteLabel] = useState('');
+  // github tab
+  const [ghRepo, setGhRepo] = useState('');
+  const [ghPat, setGhPat] = useState('');
+  const [ghPath, setGhPath] = useState('');
+  const [ghLabel, setGhLabel] = useState('');
   const [error, setError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -103,6 +108,24 @@ function ContextContent() {
     }
   }
 
+  async function handleAddGitHub() {
+    if (!ghRepo.trim() || !ghPat.trim() || !sessionId) return;
+    setUploading(true);
+    setError('');
+    try {
+      await api.context.addGitHub(sessionId, ghRepo.trim(), ghPat.trim(), ghPath.trim(), ghLabel.trim());
+      setGhRepo('');
+      setGhPat('');
+      setGhPath('');
+      setGhLabel('');
+      await load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function handleDelete(pos: string) {
     if (!sessionId) return;
     try {
@@ -133,7 +156,7 @@ function ContextContent() {
 
       {/* Tab selector */}
       <div className="border-b flex gap-0">
-        {(['file', 'url', 'text'] as const).map(t => (
+        {(['file', 'url', 'text', 'github'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -143,7 +166,7 @@ function ContextContent() {
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            {t === 'file' ? '📄 Upload File' : t === 'url' ? '🔗 URL' : '📋 Paste Text'}
+            {t === 'file' ? '📄 Upload File' : t === 'url' ? '🔗 URL' : t === 'github' ? '🐙 GitHub' : '📋 Paste Text'}
           </button>
         ))}
       </div>
@@ -223,6 +246,47 @@ function ContextContent() {
               className="bg-brand-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
             >
               {uploading ? 'Adding…' : 'Add Text'}
+            </button>
+          </>
+        )}
+
+        {tab === 'github' && (
+          <>
+            <p className="text-sm font-medium text-gray-700">Fetch from a GitHub repository using a Personal Access Token</p>
+            <input
+              value={ghRepo}
+              onChange={e => setGhRepo(e.target.value)}
+              placeholder="owner/repo"
+              className="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+            />
+            <input
+              value={ghPat}
+              onChange={e => setGhPat(e.target.value)}
+              placeholder="GitHub PAT (github_pat_… or ghp_…)"
+              type="password"
+              className="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+            />
+            <input
+              value={ghPath}
+              onChange={e => setGhPath(e.target.value)}
+              placeholder="Path within repo (optional, e.g. docs/spec.md)"
+              className="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+            />
+            <input
+              value={ghLabel}
+              onChange={e => setGhLabel(e.target.value)}
+              placeholder="Label (optional)"
+              className="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+            />
+            <p className="text-xs text-gray-400">
+              Leave path empty to fetch all text files in the repo root. A PAT with <code>repo</code> (or <code>contents:read</code> for fine-grained) scope is required for private repos.
+            </p>
+            <button
+              onClick={handleAddGitHub}
+              disabled={uploading || !ghRepo.trim() || !ghPat.trim()}
+              className="bg-brand-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+            >
+              {uploading ? 'Fetching…' : 'Fetch & Add'}
             </button>
           </>
         )}
