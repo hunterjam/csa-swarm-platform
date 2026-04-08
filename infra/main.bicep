@@ -27,6 +27,43 @@ var backendImage   = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:lates
 var frontendImage  = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 var entraTenantId  = tenant().tenantId
 
+// ── Virtual Network ────────────────────────────────────────────────────────
+// Two subnets:
+//   container-apps-infra — /23 dedicated to Container Apps environment (Azure requirement)
+//   private-endpoints    — /27 for Cosmos DB (and future) private endpoints
+// This is required so Container Apps can reach Cosmos DB via private link,
+// making publicNetworkAccess: Disabled on Cosmos DB irrelevant (SFI-proof).
+resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
+  name: '${prefix}-vnet'
+  location: location
+  properties: {
+    addressSpace: {
+      addressPrefixes: ['10.0.0.0/16']
+    }
+    subnets: [
+      {
+        name: 'container-apps-infra'
+        properties: {
+          addressPrefix: '10.0.0.0/23'
+          delegations: [
+            {
+              name: 'Microsoft.App.environments'
+              properties: { serviceName: 'Microsoft.App/environments' }
+            }
+          ]
+        }
+      }
+      {
+        name: 'private-endpoints'
+        properties: {
+          addressPrefix: '10.0.2.0/27'
+          privateEndpointNetworkPolicies: 'Disabled'
+        }
+      }
+    ]
+  }
+}
+
 // ── Log Analytics (for Container Apps environment) ───────────────────────
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: '${prefix}-logs'
@@ -138,11 +175,18 @@ resource acr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' = {
   }
 }
 
-// ── Container Apps Environment ───────────────────────────────────────────
+// ── Container Apps Environment (VNet-injected) ──────────────────────────
+// NOTE: VNet configuration cannot be changed on an existing environment.
+// If updating from a non-VNet environment, delete the old environment and
+// apps first, then redeploy:  see deployment instructions in README.
 resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: '${prefix}-env'
   location: location
   properties: {
+    vnetConfiguration: {
+      infrastructureSubnetId: '${vnet.id}/subnets/container-apps-infra'
+      internal: false  // external ingress (public FQDNs) still works
+    }
     appLogsConfiguration: {
       destination: 'log-analytics'
       logAnalyticsConfiguration: {
@@ -170,34 +214,18 @@ module cosmos 'modules/cosmos.bicep' = {
   params: {
     location: location
     accountName: '${prefix}-cosmos'
+    privateEndpointSubnetId: '${vnet.id}/subnets/private-endpoints'
+    vnetId: vnet.id
   }
 }
 
 // ── Entra ID app registration (via Microsoft Graph extension) ─────────────
-resource appReg 'Microsoft.Graph/applications@beta' = {
+// NOTE: Using 'existing' to reference the pre-created app reg.
+// The registration was created on first deployment. Re-creating it fails with
+// "Permission cannot be deleted or updated unless disabled first" when the scope
+// already exists and is enabled. Reading an existing resource avoids that conflict.
+resource appReg 'Microsoft.Graph/applications@beta' existing = {
   uniqueName: '${prefix}-webapp'
-  displayName: '${prefix}-webapp'
-  signInAudience: 'AzureADMyOrg'
-  api: {
-    oauth2PermissionScopes: [
-      {
-        id: guid('${prefix}-webapp', 'access_as_user')
-        adminConsentDescription: 'Allow the app to access ${prefix}-webapp on behalf of the signed-in user.'
-        adminConsentDisplayName: 'Access ${prefix}-webapp'
-        userConsentDescription: 'Allow the app to access ${prefix}-webapp on your behalf.'
-        userConsentDisplayName: 'Access ${prefix}-webapp'
-        isEnabled: true
-        type: 'User'
-        value: 'access_as_user'
-      }
-    ]
-  }
-  spa: {
-    redirectUris: [
-      'https://${frontendFqdn}'
-      'http://localhost:3000'
-    ]
-  }
 }
 // NOTE: identifierUris (api://<appId>) is set via azd postprovision hook in azure.yaml
 // because Bicep does not allow self-referencing appReg.appId inside its own declaration.
