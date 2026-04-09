@@ -72,7 +72,7 @@ const RoundCard = memo(function RoundCard({ round }: { round: Round }) {
   return (
     <div className="border rounded p-4 bg-white space-y-3">
       <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">
-        Round {round.round_number}
+        Round {round.round_number}{round.created_at ? ` · ${new Date(round.created_at).toLocaleString()}` : ''}
       </p>
       <div className="bg-gray-100 rounded p-3">
         <p className="text-xs font-semibold text-gray-500 mb-1">PM</p>
