@@ -175,6 +175,12 @@ async def run_round_streaming(
 
     await asyncio.gather(*tasks, return_exceptions=True)
 
+    # Brief pause so the ASGI server flushes csa_done events as a separate TCP
+    # delivery before Dir CSA chunks arrive.  Without this, all events can land
+    # in the same reader.read() call on the client and the browser never gets a
+    # chance to paint CSA cards before Dir CSA text appears.
+    await asyncio.sleep(0.3)
+
     # ── Phase 2: stream Dir CSA response ────────────────────────────────
     dir_role = roles.get(dir_key)
     if not dir_role:
