@@ -116,7 +116,8 @@ function DebateContent() {
   const [dirBuffer, setDirBuffer] = useState('');
   const dirBufferRef = useRef('');
   const dirFlushRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [pendingCsa, setPendingCsa] = useState<Record<string, CsaResponse>>({});
+  const csaBufferRef = useRef<Record<string, { display_name: string; text: string; done: boolean }>>({});
+  const [csaBuffers, setCsaBuffers] = useState<Record<string, { display_name: string; text: string; done: boolean }>>({});
   const [error, setError] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -135,25 +136,29 @@ function DebateContent() {
     setError('');
     setDirBuffer('');
     dirBufferRef.current = '';
-    setPendingCsa({});
-    setStatus('CSA agents thinking…');
+    csaBufferRef.current = {};
+    setCsaBuffers({});
+    setStatus('CSA agents responding…');
     scrollBottom();
 
     // Flush accumulated chunks to state at most every 150ms to avoid
     // blocking React's message-channel scheduler with full markdown re-parses.
     dirFlushRef.current = setInterval(() => {
       setDirBuffer(dirBufferRef.current);
+      setCsaBuffers({ ...csaBufferRef.current });
     }, 150);
 
     try {
       await streamDebateRound(sessionId, pm.trim(), (raw) => {
         const evt = raw as DebateEvent;
-        if (evt.type === 'csa_done') {
-          setPendingCsa(prev => ({
-            ...prev,
-            [evt.role]: { role: evt.role, display_name: evt.display_name, text: evt.text },
-          }));
-          setStatus('Dir CSA reviewing…');
+        if (evt.type === 'csa_chunk') {
+          const prev = csaBufferRef.current[evt.role] ?? { display_name: evt.display_name, text: '', done: false };
+          csaBufferRef.current[evt.role] = { ...prev, text: prev.text + evt.text };
+        } else if (evt.type === 'csa_done') {
+          csaBufferRef.current[evt.role] = { display_name: evt.display_name, text: evt.text, done: true };
+          if (Object.values(csaBufferRef.current).every(v => v.done)) {
+            setStatus('Dir CSA synthesizing…');
+          }
         } else if (evt.type === 'dir_chunk') {
           dirBufferRef.current += evt.text;  // accumulate without triggering render
         } else if (evt.type === 'round_complete') {
@@ -161,7 +166,8 @@ function DebateContent() {
           setRounds(prev => [...prev, evt.round]);
           setDirBuffer('');
           dirBufferRef.current = '';
-          setPendingCsa({});
+          csaBufferRef.current = {};
+          setCsaBuffers({});
           setStatus('');
           scrollBottom();
         } else if (evt.type === 'error') {
@@ -196,7 +202,18 @@ function DebateContent() {
       {running && (
         <div className="border rounded p-4 bg-white space-y-3 animate-pulse-once">
           <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">{status}</p>
-          {Object.values(pendingCsa).map(r => <AgentCard key={r.role} resp={r} />)}
+          {Object.keys(csaBuffers).length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {Object.entries(csaBuffers).map(([role, buf]) => (
+                <div key={role} className={`border-l-4 rounded p-3 ${ROLE_COLORS[role] ?? 'border-gray-300 bg-gray-50'}`}>
+                  <p className="text-xs font-bold text-gray-600 mb-2">
+                    {buf.display_name}{!buf.done ? ' (streaming…)' : ''}
+                  </p>
+                  <Markdown size="compact">{buf.text}</Markdown>
+                </div>
+              ))}
+            </div>
+          )}
           {dirBuffer && (
             <div className={`border-l-4 rounded p-3 ${ROLE_COLORS['dir_csa']}`}>
               <p className="text-xs font-bold text-gray-600 mb-2">Dir CSA (streaming…)</p>

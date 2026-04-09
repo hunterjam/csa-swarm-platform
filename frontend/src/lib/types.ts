@@ -71,6 +71,7 @@ export interface AgentConfigResponse {
 
 // ── SSE event shapes (debate stream) ────────────────────────────────────
 export type DebateEvent =
+  | { type: 'csa_chunk'; role: string; display_name: string; text: string }
   | { type: 'csa_done'; role: string; display_name: string; text: string }
   | { type: 'dir_chunk'; text: string }
   | { type: 'round_complete'; round: Round }

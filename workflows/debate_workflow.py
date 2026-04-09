@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, AsyncGenerator
 
 from azure.identity.aio import DefaultAzureCredential
 
-from agents.role_agents import invoke_agent, load_roles, stream_agent_response
+from agents.role_agents import load_roles, stream_agent_response
 
 if TYPE_CHECKING:
     from swarm.cosmos_store import CosmosStore
@@ -127,31 +127,53 @@ async def run_round_streaming(
 
     credential = DefaultAzureCredential()
 
-    # ── Phase 1: run all CSAs in parallel ───────────────────────────────
+    # ── Phase 1: stream all CSAs in parallel via a shared queue ───────────
     csa_user_msg = _build_csa_user_message(pm_message, round_history, grounding_block)
+    queue: asyncio.Queue[dict] = asyncio.Queue()
 
-    async def _run_csa(key: str) -> tuple[str, dict]:
+    async def _stream_csa_to_queue(key: str) -> None:
         role = roles[key]
-        text = await invoke_agent(key, role, csa_user_msg, credential, model_name=model_name)
-        return key, {
-            "display_name": role.get("display_name", key),
-            "domain": role.get("domain", ""),
-            "lens": role.get("lens", ""),
-            "text": text,
-        }
+        display_name = role.get("display_name", key)
+        chunks: list[str] = []
+        try:
+            async for chunk_text in stream_agent_response(
+                key, role, csa_user_msg, credential, model_name=model_name
+            ):
+                chunks.append(chunk_text)
+                await queue.put({
+                    "type": "csa_chunk",
+                    "role": key,
+                    "display_name": display_name,
+                    "text": chunk_text,
+                })
+        except Exception as exc:
+            await queue.put({"type": "error", "message": f"{key}: {exc}"})
+        # Always signal completion so the consumer can count all CSAs done
+        await queue.put({
+            "type": "csa_done",
+            "role": key,
+            "display_name": display_name,
+            "text": "".join(chunks),
+        })
 
-    # Gather results, yield each as it would complete
-    # asyncio.gather runs in parallel; we yield results as the list completes
-    try:
-        csa_results = await asyncio.gather(*[_run_csa(k) for k in csa_keys])
-    except Exception as exc:
-        yield {"type": "error", "message": str(exc)}
-        return
+    tasks = [asyncio.create_task(_stream_csa_to_queue(k)) for k in csa_keys]
 
     csa_responses: dict[str, dict] = {}
-    for role_key, data in csa_results:
-        csa_responses[role_key] = data
-        yield {"type": "csa_complete", "role": role_key, **data}
+    done_count = 0
+    while done_count < len(csa_keys):
+        event = await queue.get()
+        yield event
+        if event["type"] == "csa_done":
+            done_count += 1
+            key = event["role"]
+            csa_responses[key] = {
+                "display_name": event["display_name"],
+                "domain": roles[key].get("domain", ""),
+                "lens": roles[key].get("lens", ""),
+                "text": event["text"],
+            }
+
+    await asyncio.gather(*tasks, return_exceptions=True)
 
     # ── Phase 2: stream Dir CSA response ────────────────────────────────
     dir_role = roles.get(dir_key)
