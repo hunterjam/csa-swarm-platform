@@ -266,10 +266,10 @@ function DebateContent() {
           ← Setup
         </a>
         <a
-          href={sessionId ? `/history?session=${sessionId}` : '/history'}
+          href={sessionId ? `/recommendations?session=${sessionId}` : '/recommendations'}
           className="bg-brand-600 text-white px-6 py-2 rounded text-sm font-medium hover:bg-brand-700 transition-colors"
         >
-          Next: History →
+          Next: Deliverables →
         </a>
       </div>
     </div>
