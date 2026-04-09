@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useRef, useState, Suspense, memo } from 'react';
+import { flushSync } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
 import { api, streamDebateRound } from '@/lib/api';
 import type { Round, DebateEvent, CsaResponse } from '@/lib/types';
@@ -156,7 +157,9 @@ function DebateContent() {
           csaBufferRef.current[evt.role] = { ...prev, text: prev.text + evt.text };
         } else if (evt.type === 'csa_done') {
           csaBufferRef.current[evt.role] = { display_name: evt.display_name, text: evt.text, done: true };
-          setCsaBuffers({ ...csaBufferRef.current }); // immediately render completed CSA card
+          // flushSync forces React to commit this render BEFORE the for-loop continues
+          // to dir_chunk events, even if they arrived in the same TCP read chunk.
+          flushSync(() => setCsaBuffers({ ...csaBufferRef.current }));
           if (Object.values(csaBufferRef.current).every(v => v.done)) {
             setStatus('Dir CSA synthesizing…');
           }
