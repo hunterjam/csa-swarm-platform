@@ -156,6 +156,7 @@ function DebateContent() {
           csaBufferRef.current[evt.role] = { ...prev, text: prev.text + evt.text };
         } else if (evt.type === 'csa_done') {
           csaBufferRef.current[evt.role] = { display_name: evt.display_name, text: evt.text, done: true };
+          setCsaBuffers({ ...csaBufferRef.current }); // immediately render completed CSA card
           if (Object.values(csaBufferRef.current).every(v => v.done)) {
             setStatus('Dir CSA synthesizing…');
           }
