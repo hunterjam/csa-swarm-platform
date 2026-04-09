@@ -25,13 +25,12 @@ The platform replaces a manual, asynchronous process where a PM has to interview
     or auto-generate a new persona from a transcript using Bootstrap)
        ↓
 5. Run Debate Rounds  ← core experience
-   (PM types a question / design prompt → agents respond live via SSE)
+   (PM types a question / design prompt → agents respond live via SSE;
+    all prior rounds are visible inline with timestamps)
        ↓
 6. Generate Deliverables
-   (Architecture Recommendation, Project Plan, Technical Specs, Roadmap, Diagram)
-       ↓
-7. History / Export
-   (all rounds and deliverables are persisted in Cosmos DB per user per session)
+   (Architecture Recommendation, Project Plan, Technical Specs, Roadmap, Diagram;
+    all rounds and deliverables are persisted in Cosmos DB per user per session)
 ```
 
 ---
@@ -41,7 +40,7 @@ The platform replaces a manual, asynchronous process where a PM has to interview
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                           Browser (Next.js 14)                          │
-│  Sessions │ Context │ Agent Config │ Debate │ Recommendations │ History  │
+│       Sessions │ Context │ Agent Config │ Debate │ Deliverables        │
 └───────────────────────────────┬─────────────────────────────────────────┘
                                 │ HTTPS + Entra ID Bearer JWT
                                 ▼
