@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import type { GroundingSource } from '@/lib/types';
 import { useSession } from '@/lib/session-context';
+import { InfoBanner } from '@/components/InfoBanner';
 
 function ContextContent() {
   const params = useSearchParams();
@@ -153,6 +154,16 @@ function ContextContent() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-brand-900">Context / Grounding</h1>
+
+      <InfoBanner title="Step 2 of 5 — Ground the agents in your customer's reality" storageKey="info-context">
+        <p>Upload documents, paste text, or add URLs that the AI agents will cite when forming their responses. This step is <strong>optional</strong> — skip it to run a session grounded only in public Microsoft documentation.</p>
+        <ul className="list-disc ml-4 mt-1 space-y-0.5">
+          <li><strong>Pinned</strong> sources are always injected into every agent call.</li>
+          <li><strong>Unpinned</strong> sources are included when the backend deems them relevant.</li>
+          <li>Accepted formats: PDF, DOCX, TXT, MD, CSV, JSON, YAML.</li>
+          <li>Good candidates: SOW excerpts, customer RFPs, existing architecture diagrams (as text), meeting notes.</li>
+        </ul>
+      </InfoBanner>
 
       {/* Tab selector */}
       <div className="border-b flex gap-0">

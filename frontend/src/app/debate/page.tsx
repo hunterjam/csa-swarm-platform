@@ -8,6 +8,7 @@ import { api, streamDebateRound } from '@/lib/api';
 import type { Round, DebateEvent, CsaResponse } from '@/lib/types';
 import { useSession } from '@/lib/session-context';
 import { Markdown } from '@/components/Markdown';
+import { InfoBanner } from '@/components/InfoBanner';
 
 // ── Starter prompts ─────────────────────────────────────────────────────
 const STARTER_PROMPTS: { label: string; text: string }[] = [
@@ -196,6 +197,16 @@ function DebateContent() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-brand-900">Debate</h1>
+
+      <InfoBanner title="Step 4 of 5 — Run the multi-agent debate" storageKey="info-debate">
+        <p>Enter a <strong>PM message</strong> — a design question or scenario for the agents to debate. Each round, all CSA agents respond in parallel, then the Director CSA synthesizes their views.</p>
+        <ul className="list-disc ml-4 mt-1 space-y-0.5">
+          <li>Use the <strong>quick-start prompts</strong> dropdown to load a pre-written scenario.</li>
+          <li>Run <strong>multiple rounds</strong> to drill deeper — agents see prior rounds and build on them.</li>
+          <li>Each round is saved automatically and will be used to generate your deliverables.</li>
+          <li>Watch for the three CSA cards to appear first, then the Director CSA synthesis below them.</li>
+        </ul>
+      </InfoBanner>
 
       {/* Completed rounds */}
       <div className="space-y-4">

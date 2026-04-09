@@ -8,6 +8,7 @@ import { api, streamRecommendation, streamDiagram } from '@/lib/api';
 import type { DocType, Recommendation, RecommendationEvent } from '@/lib/types';
 import { useSession } from '@/lib/session-context';
 import { Markdown } from '@/components/Markdown';
+import { InfoBanner } from '@/components/InfoBanner';
 
 const MermaidDiagram = dynamic(() => import('@/components/MermaidDiagram'), { ssr: false });
 
@@ -184,6 +185,16 @@ function RecsContent() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-brand-900">Deliverables</h1>
+
+      <InfoBanner title="Step 5 of 5 — Generate session deliverables" storageKey="info-deliverables">
+        <p>Generate structured documents from the full debate transcript. Each document is strictly grounded — agents only cite what was discussed or official Microsoft documentation.</p>
+        <ul className="list-disc ml-4 mt-1 space-y-0.5">
+          <li><strong>You must complete at least one debate round</strong> before generating deliverables.</li>
+          <li>Select a document type, then click <strong>Generate</strong>. Use <strong>Generate All</strong> to create all types at once.</li>
+          <li>Generated documents are saved per session and can be re-generated after additional debate rounds.</li>
+          <li>The <strong>Architecture Diagram</strong> renders as a live Mermaid diagram you can copy or screenshot.</li>
+        </ul>
+      </InfoBanner>
 
       <div className="flex flex-wrap gap-3 items-end">
         <div>
