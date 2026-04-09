@@ -12,8 +12,8 @@ const STEPS = [
   { href: '/context',         label: 'Context',      sessionParam: true  },
   { href: '/setup',           label: 'Setup',        sessionParam: true  },
   { href: '/debate',          label: 'Debate',       sessionParam: true  },
-  { href: '/history',         label: 'History',      sessionParam: true  },
   { href: '/recommendations', label: 'Deliverables', sessionParam: true  },
+  { href: '/history',         label: 'History',      sessionParam: true  },
 ];
 
 export default function NavBar() {
