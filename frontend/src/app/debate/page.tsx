@@ -273,9 +273,9 @@ function DebateContent() {
             value={pm}
             onChange={e => setPm(e.target.value)}
             placeholder="Enter your PM message…"
-            rows={3}
+            rows={7}
             disabled={running}
-            className="border rounded px-3 py-2 flex-1 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-600 disabled:opacity-50"
+            className="border rounded px-3 py-2 flex-1 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-brand-600 disabled:opacity-50"
           />
           <button
             onClick={runRound}
