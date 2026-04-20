@@ -351,34 +351,52 @@ For each User Story under this epic:
 ## Section 2 — CSV Import Blocks
 
 CRITICAL CSV RULES — READ BEFORE WRITING:
-- The Azure DevOps CSV MUST contain ONE ROW for EVERY story defined in Section 1.
-- Do NOT summarise, truncate, skip, or omit any story. If Section 1 has 12 stories, the CSV must have 12 User Story rows (plus Task rows).
-- Do NOT add a comment like "[remaining rows omitted]" — write every row in full.
-- Wrap any field that contains commas or newlines in double-quotes.
-- Acceptance Criteria field: join all criteria with " | " (pipe-separated) inside one quoted cell.
-- Do NOT include the bracketed example lines — replace them with real data.
+- The Azure DevOps CSV MUST use the following row order for EVERY Epic in Section 1:
+    1. One "Epic" row for the Epic itself.
+    2. One "User Story" row for EACH story under that Epic.
+    3. One "Task" row for EACH task listed in that story's task table.
+  Repeat this pattern for every Epic — do NOT flatten or reorder.
+- Do NOT summarise, truncate, skip, or omit any Epic, User Story, or Task row.
+- Do NOT add comments like "[remaining rows omitted]" — write every row in full.
+- Wrap any field containing commas or newlines in double-quotes.
+- Acceptance Criteria field (User Story rows only): join all criteria with " | " inside one quoted cell.
+- Tags field: for User Story rows use the Epic title; for Task rows use the parent story title.
+- Story Points field: leave blank for Epic rows and Task rows; populate only for User Story rows.
+- Do NOT include the bracketed placeholder lines below — replace them entirely with real data.
 
 ### GitHub Projects CSV
 ```csv
 Title,Body,Labels,Milestone,Priority
-[one row per story from Section 1 — Body = "As a [role], I want [feature], so that [benefit]." Labels = epic name. No rows may be omitted.]
+[one row per STORY from Section 1 — Body = "As a [role], I want [feature], so that [benefit]." Labels = epic name.]
 ```
 
 ### Azure DevOps CSV
+
+The row sequence must be: Epic → its User Stories → each story's Tasks → next Epic → ...
+
 ```csv
 Work Item Type,Title,Description,Acceptance Criteria,Priority,Story Points,Tags
-[User Story rows first — one per story from Section 1. Then Task rows — one per task from each story's task table. No rows may be omitted.]
+Epic,[Epic 1 title],[Epic theme / description],,,[Epic 1 title]
+User Story,[Story 1.1 title],"As a [role], I want [feature], so that [benefit].",[AC1 | AC2 | AC3],[P1/P2/P3],[points],[Epic 1 title]
+Task,[Task 1.1.1 title],[task description],,,,[Story 1.1 title]
+Task,[Task 1.1.2 title],[task description],,,,[Story 1.1 title]
+User Story,[Story 1.2 title],...
+...
+Epic,[Epic 2 title],...
+...
 ```
+
+Replace ALL placeholder lines above with the actual Epics, User Stories, and Tasks from Section 1.
 
 ---
 
 After both sections, add:
 
 ## Backlog Summary
-| Epic | Stories | Total Points | P1 Stories | P2 Stories | P3 Stories |
-|------|---------|-------------|------------|------------|------------|
+| Epic | Stories | Tasks | Total Points | P1 Stories | P2 Stories | P3 Stories |
+|------|---------|-------|-------------|------------|------------|------------|
 
-Final check before submitting: count the User Story rows in your Azure DevOps CSV and confirm it matches the total story count from Section 1. If they do not match, go back and add the missing rows.
+Final check before submitting: verify that every Epic, every User Story, and every Task from Section 1 has a corresponding row in the Azure DevOps CSV. If anything is missing, add it before finishing.
 
 Be specific and exhaustive. A story that cannot be traced to the debate should not appear.
 """
