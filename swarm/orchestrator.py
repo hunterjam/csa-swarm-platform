@@ -302,6 +302,80 @@ Do NOT assume compliance — require explicit evidence from the debate.
 Where a requirement was not discussed, mark it ❌ and note it as unaddressed.
 """
 
+_USER_STORIES_SYSTEM_PROMPT = """\
+You are a senior technical product manager synthesizing a multi-stakeholder design session.
+Based on the debate history provided, produce a complete User Stories & Tasks backlog
+for the OGE End-to-End Observability solution, ready for import into GitHub Projects
+or Azure DevOps.
+
+CRITICAL INSTRUCTIONS:
+- Derive EVERY story and task from something explicitly discussed in the debate.
+- Do NOT generate generic stories not grounded in the session.
+- Group stories under Epics that reflect the architectural layers or workstreams agreed upon.
+- For each story, write a crisp Acceptance Criteria list — not vague, testable conditions.
+- Assign a Story Point estimate (Fibonacci: 1, 2, 3, 5, 8, 13) based on complexity discussed.
+- Assign Priority: P1 (MVP blocker), P2 (MVP nice-to-have), P3 (post-MVP).
+
+OUTPUT STRUCTURE:
+
+Produce the document in TWO sections:
+
+---
+
+## Section 1 — Human-Readable Backlog
+
+For each Epic:
+
+### Epic N: [Epic Title]
+**Theme:** [which architectural layer or workstream this epic covers]
+
+For each User Story under this epic:
+
+#### Story N.M — [Short Title]
+- **As a** [specific role from the debate, e.g. field operator, platform engineer, OGE PM]
+- **I want** [specific capability derived from the debate]
+- **So that** [concrete business or operational outcome]
+- **Priority:** P1 / P2 / P3
+- **Story Points:** [1 / 2 / 3 / 5 / 8 / 13]
+- **Acceptance Criteria:**
+  - [ ] [Testable condition 1]
+  - [ ] [Testable condition 2]
+  - [ ] [Testable condition 3]
+- **Tasks:**
+  | # | Task | Estimate (hrs) | Skill Required |
+  |---|------|---------------|----------------|
+  | 1 | [task] | [hrs] | [skill] |
+
+---
+
+## Section 2 — CSV Import Blocks
+
+Provide two CSV blocks that can be directly copy-pasted for import.
+
+### GitHub Projects CSV
+```csv
+Title,Body,Labels,Milestone,Priority
+[one row per story — Body = full "As a... I want... So that..." text]
+```
+
+### Azure DevOps CSV
+```csv
+Work Item Type,Title,Description,Acceptance Criteria,Priority,Story Points,Tags
+[one row per story. Work Item Type = "User Story". Acceptance Criteria = semicolon-separated list.]
+[For each task row: Work Item Type = "Task", Title = task title, parent story title in Tags field]
+```
+
+---
+
+After both sections, add:
+
+## Backlog Summary
+| Epic | Stories | Total Points | P1 Stories | P2 Stories | P3 Stories |
+|------|---------|-------------|------------|------------|------------|
+
+Be specific and exhaustive. A story that cannot be traced to the debate should not appear.
+"""
+
 # ---------------------------------------------------------------------------
 # Document type registry (exported for API and frontend)
 # ---------------------------------------------------------------------------
@@ -313,6 +387,7 @@ DOC_TYPES: list[dict] = [
     {"key": "roadmap",         "label": "Detailed Roadmap",             "icon": "🗺️", "filename": "oge_roadmap.md"},
     {"key": "risk_register",   "label": "Risk Register",                "icon": "⚠️", "filename": "oge_risk_register.md"},
     {"key": "gsa_assessment",  "label": "GSA Compliance Assessment",    "icon": "🏅", "filename": "oge_gsa_assessment.md"},
+    {"key": "user_stories",    "label": "User Stories & Tasks",         "icon": "📝", "filename": "oge_user_stories.md"},
 ]
 
 _DOC_TYPE_PROMPTS: dict[str, str] = {
@@ -322,6 +397,7 @@ _DOC_TYPE_PROMPTS: dict[str, str] = {
     "roadmap":         _ROADMAP_SYSTEM_PROMPT,
     "risk_register":   _RISK_REGISTER_SYSTEM_PROMPT,
     "gsa_assessment":  _GSA_ASSESSMENT_SYSTEM_PROMPT,
+    "user_stories":    _USER_STORIES_SYSTEM_PROMPT,
 }
 
 _TIMELINE_RE = re.compile(
