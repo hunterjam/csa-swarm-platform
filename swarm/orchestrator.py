@@ -308,97 +308,89 @@ Based on the debate history provided, produce a complete User Stories & Tasks ba
 for the OGE End-to-End Observability solution, ready for import into GitHub Projects
 or Azure DevOps.
 
-CRITICAL INSTRUCTIONS:
+CONTENT RULES:
 - Derive EVERY story and task from something explicitly discussed in the debate.
 - Do NOT generate generic stories not grounded in the session.
-- Group stories under Epics that reflect the architectural layers or workstreams agreed upon.
-- For each story, write a crisp Acceptance Criteria list — not vague, testable conditions.
-- Assign a Story Point estimate (Fibonacci: 1, 2, 3, 5, 8, 13) based on complexity discussed.
-- Assign Priority: P1 (MVP blocker), P2 (MVP nice-to-have), P3 (post-MVP).
+- Group stories under 3 Epics that reflect the major architectural workstreams agreed upon.
+- For each story: write acceptance criteria as testable conditions.
+- Assign Story Points (Fibonacci: 1, 2, 3, 5, 8, 13) and Priority: P1 (MVP blocker), P2 (MVP nice-to-have), P3 (post-MVP).
 
-OUTPUT STRUCTURE:
+OUTPUT ORDER — FOLLOW EXACTLY:
 
-Produce the document in TWO sections:
-
----
-
-## Section 1 — Human-Readable Backlog
-
-For each Epic:
-
-### Epic N: [Epic Title]
-**Theme:** [which architectural layer or workstream this epic covers]
-
-For each User Story under this epic:
-
-#### Story N.M — [Short Title]
-- **As a** [specific role from the debate, e.g. field operator, platform engineer, OGE PM]
-- **I want** [specific capability derived from the debate]
-- **So that** [concrete business or operational outcome]
-- **Priority:** P1 / P2 / P3
-- **Story Points:** [1 / 2 / 3 / 5 / 8 / 13]
-- **Acceptance Criteria:**
-  - [ ] [Testable condition 1]
-  - [ ] [Testable condition 2]
-  - [ ] [Testable condition 3]
-- **Tasks:**
-  | # | Task | Estimate (hrs) | Skill Required |
-  |---|------|---------------|----------------|
-  | 1 | [task] | [hrs] | [skill] |
+You MUST write the sections in this order. The CSV sections come FIRST because they are
+the highest-priority output. Do NOT reorder.
 
 ---
 
-## Section 2 — CSV Import Blocks
+# Step 1 — Epic Outline
 
-CRITICAL CSV RULES — READ BEFORE WRITING:
-- The Azure DevOps CSV MUST use the following row order for EVERY Epic in Section 1:
-    1. One "Epic" row for the Epic itself.
-    2. One "User Story" row for EACH story under that Epic.
-    3. One "Task" row for EACH task listed in that story's task table.
-  Repeat this pattern for every Epic — do NOT flatten or reorder.
-- Do NOT summarise, truncate, skip, or omit any Epic, User Story, or Task row.
-- Do NOT add comments like "[remaining rows omitted]" — write every row in full.
-- Wrap any field containing commas or newlines in double-quotes.
-- Acceptance Criteria field (User Story rows only): join all criteria with " | " inside one quoted cell.
-- Tags field: for User Story rows use the Epic title; for Task rows use the parent story title.
-- Story Points field: leave blank for Epic rows and Task rows; populate only for User Story rows.
-- Do NOT include the bracketed placeholder lines below — replace them entirely with real data.
+List all 3 Epics with a one-line theme before writing anything else:
 
-### GitHub Projects CSV
-```csv
-Title,Body,Labels,Milestone,Priority
-[one row per STORY from Section 1 — Body = "As a [role], I want [feature], so that [benefit]." Labels = epic name.]
-```
+| # | Epic Title | Theme |
+|---|------------|-------|
+| 1 | [title] | [architectural layer / workstream] |
+| 2 | [title] | [architectural layer / workstream] |
+| 3 | [title] | [architectural layer / workstream] |
 
-### Azure DevOps CSV
+---
 
-The row sequence must be: Epic → its User Stories → each story's Tasks → next Epic → ...
+# Step 2 — Azure DevOps CSV (write this IN FULL before Section 3)
+
+RULES:
+- Row sequence: Epic row → its User Story rows → each story's Task rows → next Epic → repeat.
+- Write ALL 3 Epics, ALL stories under each, ALL tasks under each story. No omissions.
+- Do NOT write placeholder comments like "[remaining rows omitted]" — write every row.
+- Acceptance Criteria (User Story rows): pipe-separated inside one quoted cell.
+- Tags: Epic title for User Story rows; parent Story title for Task rows.
+- Story Points: only on User Story rows (blank for Epic and Task rows).
 
 ```csv
 Work Item Type,Title,Description,Acceptance Criteria,Priority,Story Points,Tags
-Epic,[Epic 1 title],[Epic theme / description],,,[Epic 1 title]
-User Story,[Story 1.1 title],"As a [role], I want [feature], so that [benefit].",[AC1 | AC2 | AC3],[P1/P2/P3],[points],[Epic 1 title]
-Task,[Task 1.1.1 title],[task description],,,,[Story 1.1 title]
-Task,[Task 1.1.2 title],[task description],,,,[Story 1.1 title]
-User Story,[Story 1.2 title],...
+Epic,[Epic 1 title],[Epic 1 theme],,,,
+User Story,[Story 1.1 short title],"As a [role], I want [feature], so that [benefit].","[AC1] | [AC2] | [AC3]",[P1/P2/P3],[pts],[Epic 1 title]
+Task,[Task description],[task detail],,,,,[Story 1.1 short title]
+Task,[Task description],[task detail],,,,,[Story 1.1 short title]
+User Story,[Story 1.2 short title],...
+Epic,[Epic 2 title],[Epic 2 theme],,,,
 ...
-Epic,[Epic 2 title],...
+Epic,[Epic 3 title],[Epic 3 theme],,,,
 ...
 ```
 
-Replace ALL placeholder lines above with the actual Epics, User Stories, and Tasks from Section 1.
+---
+
+# Step 3 — GitHub Projects CSV
+
+```csv
+Title,Body,Labels,Milestone,Priority
+[one row per story — Body = "As a [role], I want [feature], so that [benefit]." Labels = Epic title.]
+```
 
 ---
 
-After both sections, add:
+# Step 4 — Human-Readable Backlog
 
-## Backlog Summary
-| Epic | Stories | Tasks | Total Points | P1 Stories | P2 Stories | P3 Stories |
-|------|---------|-------|-------------|------------|------------|------------|
+For each Epic (all 3):
 
-Final check before submitting: verify that every Epic, every User Story, and every Task from Section 1 has a corresponding row in the Azure DevOps CSV. If anything is missing, add it before finishing.
+### Epic N: [title]
+**Theme:** [workstream]
 
-Be specific and exhaustive. A story that cannot be traced to the debate should not appear.
+For each story under this Epic:
+
+#### Story N.M — [Short Title]
+- **As a** [role] **I want** [feature] **so that** [outcome]
+- **Priority:** P1/P2/P3  |  **Story Points:** [n]
+- **Acceptance Criteria:** [AC1] · [AC2] · [AC3]
+- **Tasks:** [task 1], [task 2], [task 3]
+
+---
+
+# Step 5 — Backlog Summary
+
+| Epic | Stories | Tasks | Total Points | P1 | P2 | P3 |
+|------|---------|-------|-------------|----|----|-----|
+
+Be specific. Every item must be traceable to the debate.
 """
 
 # ---------------------------------------------------------------------------
@@ -536,12 +528,17 @@ async def generate_recommendation_streaming(
             debate_transcript = hint + debate_transcript
 
     credential = DefaultAzureCredential()
+    # User stories needs extra token budget to emit all Epics + full CSV rows
+    extra_agent_kwargs: dict = {}
+    if doc_type == "user_stories":
+        extra_agent_kwargs["max_completion_tokens"] = 16000
     async with AzureOpenAIChatClient(
         endpoint=settings.FOUNDRY_OPENAI_ENDPOINT,
         deployment_name=settings.FOUNDRY_MODEL_DEPLOYMENT_NAME,
         credential=credential,
     ).as_agent(
         instructions=system_prompt,
+        **extra_agent_kwargs,
     ) as agent:
         stream = agent.run(debate_transcript, stream=True)
         async for chunk in stream:
