@@ -346,16 +346,23 @@ RULES:
 
 ```csv
 Work Item Type,Title,Description,Acceptance Criteria,Priority,Story Points,Tags
-Epic,[Epic 1 title],[Epic 1 theme],,,,
+Epic,[Epic 1 title],[Epic 1 theme],,,,[Epic 1 title]
 User Story,[Story 1.1 short title],"As a [role], I want [feature], so that [benefit].","[AC1] | [AC2] | [AC3]",[P1/P2/P3],[pts],[Epic 1 title]
-Task,[Task description],[task detail],,,,,[Story 1.1 short title]
-Task,[Task description],[task detail],,,,,[Story 1.1 short title]
-User Story,[Story 1.2 short title],...
-Epic,[Epic 2 title],[Epic 2 theme],,,,
+Task,[Task 1.1.1 title],[task detail],,,,[Story 1.1 short title]
+Task,[Task 1.1.2 title],[task detail],,,,[Story 1.1 short title]
+User Story,[Story 1.2 short title],"As a [role], I want [feature], so that [benefit].","[AC1] | [AC2]",[P1/P2/P3],[pts],[Epic 1 title]
+Task,[Task 1.2.1 title],[task detail],,,,[Story 1.2 short title]
+Epic,[Epic 2 title],[Epic 2 theme],,,,[Epic 2 title]
+User Story,[Story 2.1 short title],...
 ...
-Epic,[Epic 3 title],[Epic 3 theme],,,,
+Epic,[Epic 3 title],[Epic 3 theme],,,,[Epic 3 title]
 ...
 ```
+
+FIELD COUNT RULE: Every row must have exactly 7 fields (6 commas). Count your commas before writing each row.
+- Epic: Work Item Type, Title, Description, (blank AC), (blank Priority), (blank SP), Tags
+- User Story: Work Item Type, Title, Description, Acceptance Criteria, Priority, Story Points, Tags  
+- Task: Work Item Type, Title, Description, (blank AC), (blank Priority), (blank SP), Tags
 
 ---
 
