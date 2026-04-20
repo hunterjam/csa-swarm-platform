@@ -350,19 +350,24 @@ For each User Story under this epic:
 
 ## Section 2 — CSV Import Blocks
 
-Provide two CSV blocks that can be directly copy-pasted for import.
+CRITICAL CSV RULES — READ BEFORE WRITING:
+- The Azure DevOps CSV MUST contain ONE ROW for EVERY story defined in Section 1.
+- Do NOT summarise, truncate, skip, or omit any story. If Section 1 has 12 stories, the CSV must have 12 User Story rows (plus Task rows).
+- Do NOT add a comment like "[remaining rows omitted]" — write every row in full.
+- Wrap any field that contains commas or newlines in double-quotes.
+- Acceptance Criteria field: join all criteria with " | " (pipe-separated) inside one quoted cell.
+- Do NOT include the bracketed example lines — replace them with real data.
 
 ### GitHub Projects CSV
 ```csv
 Title,Body,Labels,Milestone,Priority
-[one row per story — Body = full "As a... I want... So that..." text]
+[one row per story from Section 1 — Body = "As a [role], I want [feature], so that [benefit]." Labels = epic name. No rows may be omitted.]
 ```
 
 ### Azure DevOps CSV
 ```csv
 Work Item Type,Title,Description,Acceptance Criteria,Priority,Story Points,Tags
-[one row per story. Work Item Type = "User Story". Acceptance Criteria = semicolon-separated list.]
-[For each task row: Work Item Type = "Task", Title = task title, parent story title in Tags field]
+[User Story rows first — one per story from Section 1. Then Task rows — one per task from each story's task table. No rows may be omitted.]
 ```
 
 ---
@@ -372,6 +377,8 @@ After both sections, add:
 ## Backlog Summary
 | Epic | Stories | Total Points | P1 Stories | P2 Stories | P3 Stories |
 |------|---------|-------------|------------|------------|------------|
+
+Final check before submitting: count the User Story rows in your Azure DevOps CSV and confirm it matches the total story count from Section 1. If they do not match, go back and add the missing rows.
 
 Be specific and exhaustive. A story that cannot be traced to the debate should not appear.
 """
