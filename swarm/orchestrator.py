@@ -355,26 +355,26 @@ This guarantees correctness regardless of content.
 ```csv
 Work Item Type,Title,Description,Acceptance Criteria,Priority,Story Points,Tags
 Epic,[Epic 1 title],"[Epic 1 theme — quote this always]",,,,"[Epic 1 title]"
-Product Backlog Item,[Story 1.1 short title],"As a [role], I want [feature], so that [benefit].","[AC1] | [AC2] | [AC3]",P1,8,"[Epic 1 title]"
-Task,[Task 1.1.1 title],"[task detail — quote even if no comma]",,,,"[Story 1.1 short title]"
-Task,[Task 1.1.2 title],"[task detail — quote even if no comma]",,,,"[Story 1.1 short title]"
-Product Backlog Item,[Story 1.2 short title],"As a [role], I want [feature], so that [benefit].","[AC1] | [AC2]",P2,5,"[Epic 1 title]"
-Task,[Task 1.2.1 title],"[task detail]",,,,"[Story 1.2 short title]"
-Epic,[Epic 2 title],"[Epic 2 theme]",,,,"[Epic 2 title]"
-Product Backlog Item,[Story 2.1 short title],"As a [role]...",...
+User Story,[Story 1.1 short title],"As a [role], I want [feature], so that [benefit].","[AC1] | [AC2] | [AC3]",P1,8,"[Epic 1 title]"
+Task,[Task 1.1.1 title],"[task detail — quote even if no comma]",,,"[Story 1.1 short title]"
+Task,[Task 1.1.2 title],"[task detail — quote even if no comma]",,,"[Story 1.1 short title]"
+User Story,[Story 1.2 short title],"As a [role], I want [feature], so that [benefit].","[AC1] | [AC2]",P2,5,"[Epic 1 title]"
+Task,[Task 1.2.1 title],"[task detail]",,,"[Story 1.2 short title]"
+Epic,[Epic 2 title],"[Epic 2 theme]",,,"[Epic 2 title]"
+User Story,[Story 2.1 short title],"As a [role]...",...
 Epic,[Epic 3 title],"[Epic 3 theme]",,,,"[Epic 3 title]"
 ...
 ```
 
 FIELD COUNT RULE: Every row must have exactly 7 fields (6 commas between fields).
 - Epic:                Work Item Type | Title | "Description" | (blank) | (blank) | (blank) | "Tags"
-- Product Backlog Item: Work Item Type | Title | "Description" | "AC"    | Priority | Points  | "Tags"
+- User Story:          Work Item Type | Title | "Description" | "AC"    | Priority | Points  | "Tags"
 - Task:                Work Item Type | Title | "Description" | (blank) | (blank)  | (blank) | "Tags"
 
-AZURE DEVOPS PROCESS TEMPLATE: This project uses the SCRUM process.
+AZURE DEVOPS PROCESS TEMPLATE: This project uses the AGILE process.
 Work item type names MUST be exactly:
 - "Epic" (not Feature)
-- "Product Backlog Item" (NOT "User Story" — that is the Agile process name)
+- "User Story" (NOT "Product Backlog Item" — that is the Scrum process name)
 - "Task"
 
 ---
