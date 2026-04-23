@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@azure/msal-browser": "^3.18.0",
@@ -20,6 +20,7 @@
     "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.2.0",
     "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
