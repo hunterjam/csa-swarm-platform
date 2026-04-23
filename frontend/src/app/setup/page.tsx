@@ -491,7 +491,7 @@ function SetupContent() {
         <p>Each CSA (Cloud Solution Architect) agent brings a distinct <strong>domain</strong> and <strong>analytical lens</strong> to the debate. The Director CSA synthesizes their views into a final recommendation.</p>
         <ul className="list-disc ml-4 mt-1 space-y-0.5">
           <li><strong>Step 1 — Model:</strong> Pick the LLM for this session. GPT-4.1 is recommended for long debates.</li>
-          <li><strong>Step 2 — CSA Agents:</strong> Customize or load a template. Each agent's lens shapes what they argue for.</li>
+          <li><strong>Step 2 — CSA Agents:</strong> Customize or load a template. Each agent&apos;s lens shapes what they argue for.</li>
           <li><strong>Step 3 — Director CSA:</strong> The director synthesizes all CSA inputs. Its prompt defines how opinionated the synthesis should be.</li>
           <li>Changes here only affect this session — defaults are preserved for new sessions.</li>
         </ul>
