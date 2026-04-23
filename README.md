@@ -249,7 +249,12 @@ The entire platform can be deployed end-to-end with the [Azure Developer CLI](ht
 - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) (`az`) and [Azure Developer CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) (`azd`)
 - [Docker](https://docs.docker.com/get-docker/) (used by `azd` to build container images)
 - An Azure region with **gpt-4o** capacity (e.g., `eastus2`, `westus3`, `swedencentral`)
-- A Microsoft Entra ID app registration for SSO (single-tenant, SPA platform with `http://localhost:3000` and your eventual frontend URL as redirect URIs)
+- **Your own Microsoft Entra ID app registration** for SSO. This repo does not ship a shared client ID — you must create one in your own tenant before deploying. Configure it as:
+  - **Supported account types**: single-tenant (or as required by your organisation)
+  - **Platform**: Single-page application (SPA)
+  - **Redirect URIs**: `http://localhost:3000` for local dev, plus your eventual frontend Container App URL after the first `azd up`
+  - **API → Expose an API**: an `Application ID URI` and a delegated scope (e.g. `access_as_user`); the `postprovision` script will set the URI to the deployed backend FQDN automatically
+  - Note the **Application (client) ID** and **Directory (tenant) ID** — you will pass these to `azd env set` below
 
 ### Deploy
 
