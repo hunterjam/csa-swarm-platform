@@ -10,7 +10,7 @@ fastapi>=0.111.0
 uvicorn[standard]>=0.29.0
 httpx>=0.28.1
 python-multipart>=0.0.26
-python-jose[cryptography]>=3.3.0
+python-jose[cryptography]>=3.5.0
 
 # ── Azure identity + clients ─────────────────────────────────────────────
 azure-identity>=1.25.3
