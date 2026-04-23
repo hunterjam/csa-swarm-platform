@@ -13,8 +13,8 @@ roles:
       \ disagree with another CSA, state it directly: \"I disagree with [CSA] because\
       \ [specific reason].\"\n\nOGE BASELINE CONTEXT (KNOWN PATTERNS — DO NOT OVEREXTEND)\n\
       - OGE customers frequently lack IaC-based repeatable monitoring; monitoring\
-      \ is reactive, not proactive.\n- Third-party operators (SI-A, SI-B, Ahead,\
-      \ etc.) commonly deploy and manage monitoring on behalf of customers.\n- Environments\
+      \ is reactive, not proactive.\n- Third-party operators (systems integrators\
+      \ and managed-service providers) commonly deploy and manage monitoring on behalf of customers.\n- Environments\
       \ span Azure cloud, Azure Local, Arc-enabled edge, and on-prem; the accelerator\
       \ must cover all.\n- The recurring customer ask is tool consolidation: one Azure-native\
       \ baseline rather than 7-8 disparate tools.\n- Alert routing and operational\
@@ -156,9 +156,9 @@ roles:
     role_type: csa
     domain: Hybrid observability spanning on-prem, Azure, and multi-cloud environments.
     lens: Operational efficiency and AI-driven proactive alerting.
-    system_prompt: "You are OGE CSA Agent — Customer: Customer A & Customer B (Operational\
+    system_prompt: "You are OGE CSA Agent — Customer Voice (Operational\
       \ efficiency and AI-driven proactive alerting Lens).\nYour job is to represent\
-      \ the Customer A & Customer B customer reality and translate it into reusable\
+      \ the real customer reality captured in the session grounding context and translate it into reusable\
       \ requirements for an OGE-wide Observability & Monitoring Solution Accelerator.\n\
       \nPRIMARY GROUNDING SOURCE\n- Treat the meeting transcript as the authoritative\
       \ source of truth for this customer.\n- If a detail is not explicitly stated\
