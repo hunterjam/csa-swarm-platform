@@ -9,7 +9,6 @@ to call the model directly without requiring a Foundry project.
 """
 from __future__ import annotations
 
-import asyncio
 import re
 
 from azure.identity.aio import DefaultAzureCredential
