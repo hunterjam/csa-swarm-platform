@@ -13,7 +13,7 @@ python-multipart>=0.0.9
 python-jose[cryptography]>=3.3.0
 
 # ── Azure identity + clients ─────────────────────────────────────────────
-azure-identity>=1.19.0
+azure-identity>=1.25.3
 azure-cosmos>=4.7.0
 azure-ai-projects>=1.0.0b11
 
