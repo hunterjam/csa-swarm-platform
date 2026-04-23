@@ -1,16 +1,10 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import nextPlugin from "@next/eslint-plugin-next";
+import reactPlugin from "eslint-plugin-react";
+import hooksPlugin from "eslint-plugin-react-hooks";
+import tsPlugin from "@typescript-eslint/eslint-plugin";
+import tsParser from "@typescript-eslint/parser";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
-const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+export default [
   {
     ignores: [
       ".next/**",
@@ -20,6 +14,38 @@ const eslintConfig = [
       "next-env.d.ts",
     ],
   },
-];
+  {
+    files: ["**/*.{js,jsx,ts,tsx}"],
+    plugins: {
+      react: reactPlugin,
+      "react-hooks": hooksPlugin,
+      "@next/next": nextPlugin,
+      "@typescript-eslint": tsPlugin,
+    },
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        sourceType: "module",
+        ecmaFeatures: { jsx: true },
+      },
+    },
+    settings: {
+      react: { version: "detect" },
+    },
+    rules: {
+      // react recommended (subset relevant for Next.js)
+      ...reactPlugin.configs.recommended.rules,
+      "react/react-in-jsx-scope": "off",
+      "react/prop-types": "off",
+      "react/no-unknown-property": "off",
+      "react/jsx-no-target-blank": "off",
 
-export default eslintConfig;
+      // react-hooks
+      ...hooksPlugin.configs.recommended.rules,
+
+      // @next/next  — recommended + core-web-vitals
+      ...nextPlugin.configs.recommended.rules,
+      ...nextPlugin.configs["core-web-vitals"].rules,
+    },
+  },
+];

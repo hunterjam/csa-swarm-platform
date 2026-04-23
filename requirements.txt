@@ -2,8 +2,8 @@
 # SDK in preview — pin exact versions to avoid breaking renames
 agent-framework-azure-ai==1.0.0rc3
 agent-framework-core==1.0.0rc3
-azure-ai-agentserver-agentframework==1.0.0b16
-azure-ai-agentserver-core==1.0.0b16
+azure-ai-agentserver-agentframework==1.0.0b17
+azure-ai-agentserver-core==1.0.0b17
 
 # ── FastAPI / ASGI server ─────────────────────────────────────────────────
 fastapi>=0.111.0
@@ -13,7 +13,7 @@ python-multipart>=0.0.26
 python-jose[cryptography]>=3.3.0
 
 # ── Azure identity + clients ─────────────────────────────────────────────
-azure-identity>=1.19.0
+azure-identity>=1.25.3
 azure-cosmos>=4.7.0
 azure-ai-projects>=1.0.0b11
 
