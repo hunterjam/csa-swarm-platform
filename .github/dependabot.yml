@@ -24,6 +24,10 @@ updates:
           - "react-dom"
           - "@types/react"
           - "@types/react-dom"
+    ignore:
+      # tailwindcss v4 is a breaking change requiring manual migration
+      - dependency-name: "tailwindcss"
+        versions: [">=4.0.0"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
