@@ -98,7 +98,7 @@ Each agent is an OpenAI **Assistant** (Azure OpenAI Assistants API) created on d
 
 Agents are not generic AI personas. Each one is loaded from `roles.yaml`, which defines:
 
-- `display_name` — the label shown in the UI (e.g., *CSA – Observability*)
+- `display_name` — the label shown in the UI (e.g., *CSA – Observability & Standardization*)
 - `domain` — the technical specialty the agent grounds into (e.g., *Oil & Gas operational monitoring*)
 - `lens` — the analytical frame the agent argues from (e.g., *Operational standardization and efficiency*)
 - `system_prompt` — a detailed instruction block that defines output format, decision heuristics, and precisely what the agent is and is not allowed to say
@@ -125,9 +125,9 @@ PM types: "What should the baseline Azure monitoring architecture look like?"
             │         Phase 1 — CSAs run in PARALLEL          │
             │                                                  │
             │  asyncio.gather(                                 │
-            │    _run_csa("csa_1"),   ← CSA Observability            │
-            │    _run_csa("csa_2"),   ← CSA ITOps              │
-            │    _run_csa("csa_3"),   ← CSA [third CSA]       │
+            │    _run_csa("csa_1"),   ← CSA Observability    │
+            │    _run_csa("csa_2"),   ← CSA IT Operations    │
+            │    _run_csa("csa_3"),   ← CSA Customer Voice   │
             │  )                                               │
             │                                                  │
             │  Each CSA receives the same user message:        │
@@ -148,9 +148,9 @@ PM types: "What should the baseline Azure monitoring architecture look like?"
             │    [prior round summaries]                        │
             │    PM message this round: <pm_message>            │
             │    === CSA RESPONSES THIS ROUND ===               │
-            │      CSA Observability (full text)                       │
-            │      CSA ITOps   (full text)                       │
-            │      CSA [3rd]  (full text)                       │
+            │      CSA Observability   (full text)              │
+            │      CSA IT Operations   (full text)              │
+            │      CSA Customer Voice  (full text)              │
             │    === END CSA RESPONSES ===                      │
             │    "As Director CSA, please synthesize..."        │
             │                                                   │

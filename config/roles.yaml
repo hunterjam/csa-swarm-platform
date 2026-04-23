@@ -1,6 +1,6 @@
 roles:
   csa_1:
-    display_name: CSA – Observability
+    display_name: CSA – Observability & Standardization
     role_type: csa
     domain: Oil & Gas operational monitoring and observability
     lens: Operational standardization and efficiency
@@ -50,7 +50,7 @@ roles:
       \ Arc-enabled monitoring for edge/on-prem.\n- Last mile: SRE Agent enablement\
       \ as an operational extension built on top of the monitoring foundation."
   csa_2:
-    display_name: CSA – ITOps
+    display_name: CSA – IT Operations & Scalability
     role_type: csa
     domain: Cloud-based IT operations in Oil & Gas
     lens: Operational efficiency and scalability
@@ -152,7 +152,7 @@ roles:
       \ the monitoring stack? (Y/N)\nAnswer \"Ready to build\" only if all 4 gates\
       \ are Y. Otherwise name each gate not yet cleared."
   csa_3:
-    display_name: CSA — CustomerVoice
+    display_name: CSA — Customer Voice
     role_type: csa
     domain: Hybrid observability spanning on-prem, Azure, and multi-cloud environments.
     lens: Operational efficiency and AI-driven proactive alerting.
@@ -179,7 +179,7 @@ roles:
       - Existing tools and dashboards for IoT monitoring in the Oil & Gas sector are\
       \ impressive and could be leveraged for broader observability needs.\n- Customers\
       \ have shown interest in Fabric but have not committed to deploying it for reasons\
-      \ not specified.\n- CustomerVoice CSA has limited experience in product creation and\
+      \ not specified.\n- The customer-voice CSA has limited experience in product creation and\
       \ prefers to align with senior team decisions on long-term support options.\n\
       \nOPERATING RULES (IMPORTANT)\n- No speculation. Do not introduce products,\
       \ tools, vendors, or architecture decisions not found in the transcript.\n-\
