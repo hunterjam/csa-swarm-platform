@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import type { GroundingSource } from '@/lib/types';
 import { useSession } from '@/lib/session-context';
@@ -336,12 +337,12 @@ function ContextContent() {
 
       {/* Wizard footer */}
       <div className="flex justify-between pt-2 border-t">
-        <a
+        <Link
           href="/"
           className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2 rounded border hover:bg-gray-50 transition-colors"
         >
           ← Sessions
-        </a>
+        </Link>
         <a
           href={sessionId ? `/setup?session=${sessionId}` : '/setup'}
           className="bg-brand-600 text-white px-6 py-2 rounded text-sm font-medium hover:bg-brand-700 transition-colors"
