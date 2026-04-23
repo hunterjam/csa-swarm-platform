@@ -9,7 +9,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@azure/msal-browser": "^3.18.0",
+    "@azure/msal-browser": "^5.8.0",
     "@azure/msal-react": "^2.0.22",
     "jszip": "^3.10.1",
     "mermaid": "^11.14.0",
