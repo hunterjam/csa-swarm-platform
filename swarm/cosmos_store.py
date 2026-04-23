@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Any
 
 from azure.cosmos.aio import CosmosClient
 from azure.cosmos import PartitionKey

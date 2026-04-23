@@ -1,0 +1,55 @@
+name: Dependabot auto-merge
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    env:
+      PR_URL: ${{ github.event.pull_request.html_url }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Fetch Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Request Copilot review
+        continue-on-error: true
+        run: |
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
+            -f "reviewers[]=copilot-pull-request-reviewer[bot]" || true
+
+      - name: Approve PR (patch/minor, or any security update)
+        if: |
+          steps.meta.outputs.update-type == 'version-update:semver-patch' ||
+          steps.meta.outputs.update-type == 'version-update:semver-minor' ||
+          steps.meta.outputs.alert-state == 'AUTO_DISMISSED' ||
+          steps.meta.outputs.ghsa-id != ''
+        run: gh pr review --approve "$PR_URL" -b "Auto-approved by Dependabot workflow (${{ steps.meta.outputs.update-type }}${{ steps.meta.outputs.ghsa-id && format(' — security advisory {0}', steps.meta.outputs.ghsa-id) || '' }})."
+
+      - name: Enable auto-merge (patch/minor, or any security update)
+        if: |
+          steps.meta.outputs.update-type == 'version-update:semver-patch' ||
+          steps.meta.outputs.update-type == 'version-update:semver-minor' ||
+          steps.meta.outputs.alert-state == 'AUTO_DISMISSED' ||
+          steps.meta.outputs.ghsa-id != ''
+        run: gh pr merge --auto --squash "$PR_URL"
+
+      - name: Comment on non-security major bump
+        if: |
+          steps.meta.outputs.update-type == 'version-update:semver-major' &&
+          steps.meta.outputs.ghsa-id == ''
+        run: |
+          gh pr comment "$PR_URL" --body "Major version bump detected (${{ steps.meta.outputs.dependency-names }} \`${{ steps.meta.outputs.previous-version }}\` → \`${{ steps.meta.outputs.new-version }}\`). Skipping auto-merge — please review manually."
