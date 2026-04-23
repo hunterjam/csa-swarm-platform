@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import io
 import re
-from typing import BinaryIO
 
 # Per-source char limit (~8 k tokens)
 MAX_CHARS = 32_000
