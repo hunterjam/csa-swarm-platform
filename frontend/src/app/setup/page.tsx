@@ -100,7 +100,7 @@ interface RoleCardProps {
   defaultRole: RoleConfig;
   override: Partial<RoleConfig>;
   onChange: (roleKey: string, field: keyof RoleConfig, value: string) => void;
-  onBootstrap: (roleKey: string, transcript: string, roleType: 'csa' | 'director') => Promise<void>;
+  onBootstrap: (roleKey: string, text: string, roleType: 'csa' | 'director', inputMode: 'transcript' | 'description') => Promise<void>;
   bootstrapping: boolean;
   onRemove?: () => void;
 }
@@ -118,6 +118,7 @@ function RoleCard({
   const role: RoleConfig = { ...defaultRole, ...override };
   const [showTranscript, setShowTranscript] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [inputMode, setInputMode] = useState<'transcript' | 'description'>('transcript');
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const roleType: 'csa' | 'director' = roleKey === 'dir_csa' ? 'director' : 'csa';
 
@@ -215,32 +216,65 @@ function RoleCard({
           </div>
         </div>
 
-        {/* Transcript bootstrap */}
+        {/* AI role generation */}
         <div>
           <button
             onClick={() => setShowTranscript((p) => !p)}
             className="text-xs text-brand-600 hover:text-brand-800 font-medium transition-colors"
           >
-            {showTranscript ? '▾ Hide' : '▸ Generate from Transcript'}
+            {showTranscript ? '▾ Hide' : '▸ Generate with AI'}
           </button>
           {showTranscript && (
-            <div className="mt-3 space-y-2 border rounded p-3 bg-gray-50">
+            <div className="mt-3 space-y-3 border rounded p-3 bg-gray-50">
+              {/* Mode toggle */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setInputMode('description')}
+                  className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                    inputMode === 'description'
+                      ? 'bg-brand-600 text-white'
+                      : 'bg-white border text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  From Description
+                </button>
+                <button
+                  onClick={() => setInputMode('transcript')}
+                  className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                    inputMode === 'transcript'
+                      ? 'bg-brand-600 text-white'
+                      : 'bg-white border text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  From Transcript
+                </button>
+              </div>
               <p className="text-xs text-gray-500">
-                Paste a meeting transcript. The AI will extract a draft role — review before saving.
+                {inputMode === 'transcript'
+                  ? 'Paste a meeting transcript. The AI will extract a draft role — review before saving.'
+                  : 'Describe the CSA role, expertise, and focus area. The AI will generate a full persona.'}
               </p>
               <textarea
                 value={transcript}
                 onChange={(e) => setTranscript(e.target.value)}
                 rows={6}
-                placeholder="Paste transcript here…"
+                placeholder={
+                  inputMode === 'transcript'
+                    ? 'Paste transcript here…'
+                    : 'Describe the role, e.g. "A CSA specializing in healthcare data platforms with a focus on HIPAA compliance and interoperability standards…"'
+                }
                 className="border rounded px-3 py-2 w-full text-xs focus:ring-2 focus:ring-brand-600 focus:outline-none resize-y"
               />
               <button
-                onClick={() => onBootstrap(roleKey, transcript, roleType)}
+                onClick={() => onBootstrap(roleKey, transcript, roleType, inputMode)}
                 disabled={bootstrapping || transcript.trim().length < 50}
                 className="bg-brand-600 text-white px-4 py-1.5 rounded text-xs font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
               >
-                {bootstrapping ? 'Generating…' : '✨ Generate Role from Transcript'}
+                {bootstrapping
+                  ? 'Generating…'
+                  : inputMode === 'transcript'
+                    ? '✨ Generate from Transcript'
+                    : '✨ Generate from Description'}
               </button>
             </div>
           )}
@@ -326,15 +360,16 @@ function SetupContent() {
 
   async function handleBootstrap(
     roleKey: string,
-    transcript: string,
+    text: string,
     roleType: 'csa' | 'director',
+    inputMode: 'transcript' | 'description',
   ) {
     if (!sessionId) return;
     setBootstrapping(true);
     setBootstrapTarget(roleKey);
     setError('');
     try {
-      const result = await api.agentConfig.bootstrap(sessionId, transcript, roleType);
+      const result = await api.agentConfig.bootstrap(sessionId, text, roleType, inputMode);
       setEdits((prev) => ({
         ...prev,
         [roleKey]: { ...(prev[roleKey] ?? {}), ...result },

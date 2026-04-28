@@ -135,6 +135,7 @@ async def put_agent_config(
 class BootstrapRequest(BaseModel):
     transcript: str
     role_type: Literal["csa", "director"] = "csa"
+    input_mode: Literal["transcript", "description"] = "transcript"
 
 
 @router.post("/api/sessions/{session_id}/agent-config/bootstrap")
@@ -156,11 +157,13 @@ async def bootstrap_role(
     if len(body.transcript.strip()) < 50:
         raise HTTPException(
             status_code=422,
-            detail="Transcript is too short — paste at least a short excerpt.",
+            detail="Input is too short — provide at least a few sentences.",
         )
 
     try:
-        result = await generate_role_from_transcript(body.transcript, body.role_type)
+        result = await generate_role_from_transcript(
+            body.transcript, body.role_type, body.input_mode
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:

@@ -136,10 +136,15 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify({ overrides, deleted_roles: deletedRoles }),
       }),
-    bootstrap: (sessionId: string, transcript: string, roleType: 'csa' | 'director' = 'csa') =>
+    bootstrap: (
+      sessionId: string,
+      transcript: string,
+      roleType: 'csa' | 'director' = 'csa',
+      inputMode: 'transcript' | 'description' = 'transcript',
+    ) =>
       _fetch<Partial<RoleConfig>>(`/api/sessions/${sessionId}/agent-config/bootstrap`, {
         method: 'POST',
-        body: JSON.stringify({ transcript, role_type: roleType }),
+        body: JSON.stringify({ transcript, role_type: roleType, input_mode: inputMode }),
       }),
   },
 };
