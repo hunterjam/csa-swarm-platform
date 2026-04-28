@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useRef, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { api, streamRecommendation } from '@/lib/api';
 import type { Recommendation, RecommendationEvent } from '@/lib/types';
 import { useSession } from '@/lib/session-context';
@@ -13,6 +13,7 @@ const DOC_TYPE = 'adr';
 
 function PlanContent() {
   const params = useSearchParams();
+  const router = useRouter();
   const { activeSessionId, setActiveSessionId } = useSession();
   const sessionId = params.get('session') ?? activeSessionId;
 
@@ -134,6 +135,15 @@ function PlanContent() {
           📐 No Architecture Decision Record generated yet. Click &quot;Generate ADR&quot; to create one from your debate session.
         </div>
       )}
+
+      <div className="flex justify-end pt-2">
+        <button
+          onClick={() => router.push(`/recommendations${sessionId ? `?session=${sessionId}` : ''}`)}
+          className="bg-brand-600 text-white px-5 py-2 rounded text-sm font-medium hover:bg-brand-700 transition-colors"
+        >
+          Next: Deliverables →
+        </button>
+      </div>
     </div>
   );
 }
