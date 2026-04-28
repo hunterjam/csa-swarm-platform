@@ -33,22 +33,22 @@ const ROLE_TEMPLATES: Record<string, Partial<RoleConfig>> = {
     domain: 'Enterprise IT / FinOps',
     lens: 'Cost optimization',
     system_prompt:
-      'You are an OGE CSA Agent with deep expertise in Azure cost management and FinOps. ' +
+      'You are a CSA Agent with deep expertise in Azure cost management and FinOps. ' +
       'Your primary lens is cost optimization — every recommendation must include a cost ' +
       'impact assessment. Favor Azure-native tools (Azure Monitor, Log Analytics, AMBA) ' +
       'at the lowest effective SKU. Flag any recommendation that introduces incremental ' +
       'Azure spend above $5K/month without a clear ROI justification.\n\n' +
-      'When advising on observability design, prioritize:\n' +
+      'When advising on design, prioritize:\n' +
       '1) Data retention tiering (hot/warm/cold) to minimize Log Analytics ingestion costs\n' +
-      '2) Sampling strategies for high-volume telemetry (e.g. OPC-UA, SCADA)\n' +
+      '2) Sampling strategies for high-volume telemetry\n' +
       '3) Reserved capacity commitments vs. pay-as-you-go tradeoffs\n' +
       '4) Alert noise reduction to avoid alert fatigue and excessive Action Group calls',
   },
   'Edge & Remote Site CSA': {
-    domain: 'Upstream field operations / edge computing',
+    domain: 'Field operations / edge computing',
     lens: 'Disconnected & low-bandwidth environments',
     system_prompt:
-      'You are an OGE CSA Agent specializing in edge and remote-site observability. ' +
+      'You are a CSA Agent specializing in edge and remote-site observability. ' +
       'Your customer base operates in environments with intermittent WAN connectivity, ' +
       'constrained bandwidth, and ruggedized hardware.\n\n' +
       'Your design heuristics:\n' +
@@ -61,25 +61,25 @@ const ROLE_TEMPLATES: Record<string, Partial<RoleConfig>> = {
       '5) All IaC must be deployable via Azure Arc at-scale to remote sites',
   },
   'Security & Compliance CSA': {
-    domain: 'OT/IT security and regulatory compliance',
+    domain: 'IT/OT security and regulatory compliance',
     lens: 'Security-first, compliance-aware',
     system_prompt:
-      "You are an OGE CSA Agent with a security and compliance focus. " +
-      "Your mandate is to ensure the observability accelerator meets OGE's security " +
-      "posture and relevant regulatory requirements (NERC CIP, ISO 27001, GDPR).\n\n" +
-      "Your design heuristics:\n" +
-      "1) All telemetry pipelines must enforce encryption in transit and at rest\n" +
-      "2) RBAC must be granular: field operators should see only their site's data\n" +
-      "3) Audit logging must be comprehensive — who accessed what alert data, when\n" +
-      "4) Sensitive operational data must have data sovereignty controls for cross-border sites\n" +
-      "5) Flag any recommendation that creates an internet-exposed diagnostic endpoint " +
-      "without WAF or Private Endpoint controls",
+      'You are a CSA Agent with a security and compliance focus. ' +
+      'Your mandate is to ensure the solution meets the customer\'s security ' +
+      'posture and relevant regulatory requirements (e.g. NERC CIP, ISO 27001, GDPR).\n\n' +
+      'Your design heuristics:\n' +
+      '1) All telemetry pipelines must enforce encryption in transit and at rest\n' +
+      '2) RBAC must be granular: operators should see only their scope of data\n' +
+      '3) Audit logging must be comprehensive — who accessed what data, when\n' +
+      '4) Sensitive operational data must have data sovereignty controls for cross-border deployments\n' +
+      '5) Flag any recommendation that creates an internet-exposed diagnostic endpoint ' +
+      'without WAF or Private Endpoint controls',
   },
   'Multi-cloud & Hybrid CSA': {
     domain: 'Multi-cloud and hybrid infrastructure',
     lens: 'Vendor-neutral, integration-focused',
     system_prompt:
-      'You are an OGE CSA Agent representing customers with existing investments in ' +
+      'You are a CSA Agent representing customers with existing investments in ' +
       'AWS, GCP, or on-premises infrastructure alongside Azure. Your focus is on ' +
       'integration patterns that avoid lock-in while delivering a unified observability view.\n\n' +
       'Your design heuristics:\n' +
@@ -288,6 +288,8 @@ function SetupContent() {
   const [edits, setEdits] = useState<Record<string, Partial<RoleConfig>>>({});
   // Extra CSA role keys added by the user (not in defaults)
   const [extraKeys, setExtraKeys] = useState<string[]>([]);
+  // Default CSA role keys the user has removed from this session
+  const [deletedDefaults, setDeletedDefaults] = useState<string[]>([]);
   // Model selector
   const [model, setModel] = useState<ModelValue | ''>('');
   // Wizard
@@ -309,6 +311,7 @@ function SetupContent() {
           (k) => k.startsWith('csa_') && !c.defaults[k]
         );
         setExtraKeys(savedExtra);
+        setDeletedDefaults(c.deleted_roles ?? []);
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false));
@@ -346,10 +349,10 @@ function SetupContent() {
 
   function handleAddRole() {
     if (!config) return;
-    const allCsaKeys = [
-      ...Object.keys(config.defaults).filter((k) => k.startsWith('csa_')),
-      ...extraKeys,
-    ];
+    const defaultCsaKeys = Object.keys(config.defaults).filter(
+      (k) => k.startsWith('csa_') && !deletedDefaults.includes(k)
+    );
+    const allCsaKeys = [...defaultCsaKeys, ...extraKeys];
     if (allCsaKeys.length >= 8) return;
     const maxNum = allCsaKeys.reduce((max, k) => {
       const n = parseInt(k.replace('csa_', ''), 10);
@@ -370,7 +373,15 @@ function SetupContent() {
   }
 
   function handleRemoveRole(key: string) {
-    setExtraKeys((prev) => prev.filter((k) => k !== key));
+    if (!config) return;
+    const isDefault = !!config.defaults[key];
+    if (isDefault) {
+      // Track deletion of a default role
+      setDeletedDefaults((prev) => [...prev, key]);
+    } else {
+      // Remove a user-added extra role
+      setExtraKeys((prev) => prev.filter((k) => k !== key));
+    }
     setEdits((prev) => {
       const next = { ...prev };
       delete next[key];
@@ -387,7 +398,7 @@ function SetupContent() {
       // persisted first — otherwise the parallel writes race and the later
       // agent config write stomps the just-saved model value.
       await api.sessions.patch(sessionId, { model: model || null });
-      await api.agentConfig.put(sessionId, edits);
+      await api.agentConfig.put(sessionId, edits, deletedDefaults);
       setDone(true);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
@@ -405,10 +416,13 @@ function SetupContent() {
   const defaults = config.defaults;
   const extraCsaKeys = extraKeys.filter((k) => !defaults[k]);
   const allCsaKeys = [
-    ...Object.keys(defaults).filter((k) => k.startsWith('csa_')),
+    ...Object.keys(defaults).filter(
+      (k) => k.startsWith('csa_') && !deletedDefaults.includes(k)
+    ),
     ...extraCsaKeys,
   ].sort((a, b) => a.localeCompare(b));
   const csaCount = allCsaKeys.length;
+  const canRemoveCsa = csaCount > 1;
 
   // ── Done state ────────────────────────────────────────────────────────
   if (done) {
@@ -568,7 +582,7 @@ function SetupContent() {
               onChange={handleChange}
               onBootstrap={handleBootstrap}
               bootstrapping={bootstrapping && bootstrapTarget === key}
-              onRemove={!defaults[key] ? () => handleRemoveRole(key) : undefined}
+              onRemove={canRemoveCsa ? () => handleRemoveRole(key) : undefined}
             />
           ))}
           {csaCount < 8 && (

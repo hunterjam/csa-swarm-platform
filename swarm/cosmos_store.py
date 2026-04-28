@@ -277,17 +277,23 @@ def _normalize_session(doc: dict) -> dict:
         "created_at": doc.get("created_at", ""),
         "updated_at": doc.get("updated_at", doc.get("created_at", "")),
         "agent_config": doc.get("agent_config", {}),
+        "deleted_roles": doc.get("deleted_roles", []),
         "model": doc.get("model", None),
     }
 
 
-async def update_agent_config(session_id: str, agent_config: dict) -> dict:
-    """Overwrite the agent_config map on a session document."""
+async def update_agent_config(
+    session_id: str,
+    agent_config: dict,
+    deleted_roles: list[str] | None = None,
+) -> dict:
+    """Overwrite the agent_config map (and optional deleted_roles list) on a session document."""
     container = await _get_container()
     doc = await container.read_item(
         item=f"session:{session_id}", partition_key=session_id
     )
     doc["agent_config"] = agent_config
+    doc["deleted_roles"] = deleted_roles or []
     updated = await container.replace_item(item=doc["id"], body=doc)
     return _normalize_session(updated)
 
@@ -408,8 +414,17 @@ class CosmosStore:
         except Exception:
             return None
 
-    async def update_agent_config(self, session_id: str, agent_config: dict) -> dict:
-        return await update_agent_config(session_id=session_id, agent_config=agent_config)
+    async def update_agent_config(
+        self,
+        session_id: str,
+        agent_config: dict,
+        deleted_roles: list[str] | None = None,
+    ) -> dict:
+        return await update_agent_config(
+            session_id=session_id,
+            agent_config=agent_config,
+            deleted_roles=deleted_roles,
+        )
 
     async def update_session_model(self, session_id: str, model: str | None) -> dict:
         return await update_session_model(session_id=session_id, model=model)

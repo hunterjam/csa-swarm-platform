@@ -131,10 +131,10 @@ export const api = {
   agentConfig: {
     get: (sessionId: string) =>
       _fetch<AgentConfigResponse>(`/api/sessions/${sessionId}/agent-config`),
-    put: (sessionId: string, overrides: Record<string, Partial<RoleConfig>>) =>
+    put: (sessionId: string, overrides: Record<string, Partial<RoleConfig>>, deletedRoles: string[] = []) =>
       _fetch<AgentConfigResponse>(`/api/sessions/${sessionId}/agent-config`, {
         method: 'PUT',
-        body: JSON.stringify({ overrides }),
+        body: JSON.stringify({ overrides, deleted_roles: deletedRoles }),
       }),
     bootstrap: (sessionId: string, transcript: string, roleType: 'csa' | 'director' = 'csa') =>
       _fetch<Partial<RoleConfig>>(`/api/sessions/${sessionId}/agent-config/bootstrap`, {

@@ -98,11 +98,13 @@ async def run_round_streaming(
     store: "CosmosStore",
     agent_config: dict | None = None,
     model_name: str | None = None,
+    deleted_roles: list[str] | None = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """
     Async generator that yields SSE event dicts for a single debate round.
     Loads round history and grounding block from Cosmos automatically.
     Optionally uses session-scoped agent_config to override default roles.
+    Roles listed in deleted_roles are excluded from the debate.
     Designed to be consumed by the FastAPI SSE endpoint.
     """
     # Load prior rounds + grounding from Cosmos
@@ -111,9 +113,12 @@ async def run_round_streaming(
 
     # Merge session-level role overrides on top of defaults
     default_roles = load_roles()
+    _deleted = set(deleted_roles or [])
     if agent_config:
         roles = {}
         for key, default in default_roles.items():
+            if key in _deleted:
+                continue
             override = agent_config.get(key, {})
             roles[key] = {**default, **override} if override else default
         # Include extra csa_* keys from agent_config not in defaults (user-added roles)
@@ -121,7 +126,7 @@ async def run_round_streaming(
             if key.startswith("csa_") and key not in default_roles and isinstance(val, dict):
                 roles[key] = val
     else:
-        roles = default_roles
+        roles = {k: v for k, v in default_roles.items() if k not in _deleted}
     csa_keys = sorted(k for k in roles if k.startswith("csa_"))
     dir_key = "dir_csa"
 

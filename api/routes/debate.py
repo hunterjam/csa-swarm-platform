@@ -42,6 +42,7 @@ async def _debate_stream(
     user_id: str,
     agent_config: dict | None = None,
     model_name: str | None = None,
+    deleted_roles: list[str] | None = None,
 ) -> AsyncGenerator[str, None]:
     try:
         round_result: dict | None = None
@@ -51,6 +52,7 @@ async def _debate_stream(
             store=store,
             agent_config=agent_config,
             model_name=model_name,
+            deleted_roles=deleted_roles,
         ):
             if event["type"] == "round_complete":
                 round_result = event["round"]
@@ -85,6 +87,7 @@ async def run_round(
             user_id=user["sub"],
             agent_config=session.get("agent_config") or None,
             model_name=session.get("model") or None,
+            deleted_roles=session.get("deleted_roles") or None,
         ),
         media_type="text/event-stream",
         headers={

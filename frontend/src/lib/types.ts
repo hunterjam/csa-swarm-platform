@@ -67,6 +67,7 @@ export interface AgentConfigResponse {
   defaults: Record<string, RoleConfig>;
   overrides: AgentConfig;
   merged: Record<string, RoleConfig>;
+  deleted_roles: string[];
 }
 
 // ── SSE event shapes (debate stream) ────────────────────────────────────

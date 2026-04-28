@@ -52,9 +52,12 @@ async def get_agent_config(
 
     defaults = load_roles()
     overrides: dict = session.get("agent_config") or {}
+    deleted_roles: list = session.get("deleted_roles") or []
 
     merged: dict = {}
     for key, default in defaults.items():
+        if key in deleted_roles:
+            continue
         override = overrides.get(key, {})
         merged[key] = {**default, **override} if override else dict(default)
     # Include extra csa_* keys from session overrides not present in defaults
@@ -62,12 +65,19 @@ async def get_agent_config(
         if key.startswith("csa_") and key not in defaults and isinstance(val, dict):
             merged[key] = val
 
-    return {"defaults": defaults, "overrides": overrides, "merged": merged}
+    return {
+        "defaults": defaults,
+        "overrides": overrides,
+        "merged": merged,
+        "deleted_roles": deleted_roles,
+    }
 
 
 class AgentConfigBody(BaseModel):
     # Mapping of role_key → partial role dict (only fields being overridden)
     overrides: dict[str, dict]
+    # Default role keys the user has removed from this session
+    deleted_roles: list[str] = []
 
 
 @router.put("/api/sessions/{session_id}/agent-config")
@@ -82,11 +92,32 @@ async def put_agent_config(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    await store.update_agent_config(session_id=session_id, agent_config=body.overrides)
-
+    # Validate: at least 1 CSA role must remain after deletions
     defaults = load_roles()
+    surviving_csa = [
+        k for k in defaults
+        if k.startswith("csa_") and k not in body.deleted_roles
+    ]
+    extra_csa = [
+        k for k in body.overrides
+        if k.startswith("csa_") and k not in defaults
+    ]
+    if len(surviving_csa) + len(extra_csa) < 1:
+        raise HTTPException(
+            status_code=422,
+            detail="At least one CSA role is required.",
+        )
+
+    await store.update_agent_config(
+        session_id=session_id,
+        agent_config=body.overrides,
+        deleted_roles=body.deleted_roles,
+    )
+
     merged: dict = {}
     for key, default in defaults.items():
+        if key in body.deleted_roles:
+            continue
         override = body.overrides.get(key, {})
         merged[key] = {**default, **override} if override else dict(default)
     # Include extra csa_* keys from overrides not present in defaults
@@ -94,7 +125,11 @@ async def put_agent_config(
         if key.startswith("csa_") and key not in defaults and isinstance(val, dict):
             merged[key] = val
 
-    return {"overrides": body.overrides, "merged": merged}
+    return {
+        "overrides": body.overrides,
+        "merged": merged,
+        "deleted_roles": body.deleted_roles,
+    }
 
 
 class BootstrapRequest(BaseModel):
