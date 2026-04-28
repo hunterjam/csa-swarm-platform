@@ -186,7 +186,7 @@ function RecsContent() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-brand-900">Deliverables</h1>
 
-      <InfoBanner title="Step 5 of 5 — Generate session deliverables" storageKey="info-deliverables">
+      <InfoBanner title="Step 6 of 6 — Generate session deliverables" storageKey="info-deliverables">
         <p>Generate structured documents from the full debate transcript. Each document is strictly grounded — agents only cite what was discussed or official Microsoft documentation.</p>
         <ul className="list-disc ml-4 mt-1 space-y-0.5">
           <li><strong>You must complete at least one debate round</strong> before generating deliverables.</li>

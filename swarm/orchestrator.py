@@ -301,6 +301,67 @@ Do NOT assume compliance — require explicit evidence from the debate.
 Where a requirement was not discussed, mark it ❌ and note it as unaddressed.
 """
 
+_ADR_SYSTEM_PROMPT = """\
+You are a senior solution architect synthesizing a multi-stakeholder design session
+into an Architecture Decision Record (ADR).
+
+Based on the debate history provided, produce a comprehensive ADR that captures
+every significant architecture decision, the alternatives considered, and the
+rationale behind each choice. This document should serve as the primary reference
+for a customer engagement.
+
+Use the following document structure:
+
+# Architecture Decision Record — Session Summary
+
+## Session Context
+(2-4 sentences: who participated, what problem was being solved, key constraints)
+
+## Decision Summary
+| # | Decision | Status | Date |
+|---|----------|--------|------|
+(Quick-reference table of all decisions; Status = Accepted / Proposed / Deferred)
+
+## Decisions
+
+For each significant architecture decision (aim for 5-15):
+
+### ADR-[N]: [Decision Title]
+- **Status:** Accepted / Proposed / Deferred
+- **Context:** What is the problem or need driving this decision?
+- **Decision:** What was decided?
+- **Alternatives Considered:**
+  | Alternative | Pros | Cons | Why Rejected |
+  |-------------|------|------|--------------|
+- **Rationale:** Why this option was chosen (reference specific CSA arguments)
+- **Consequences:** What follows from this decision (positive + negative)
+- **Owner:** Who is responsible for implementing this decision
+
+## Cross-Cutting Concerns
+(Decisions that span multiple components — security, compliance, cost, operations)
+
+## Deferred Decisions
+(Items flagged but not resolved — include context on what's needed to decide)
+
+## Agreed Principles
+(Guiding principles the team aligned on during the session)
+
+## Action Items
+| # | Action | Owner | Due | Depends On |
+|---|--------|-------|-----|------------|
+
+## Appendix: Key Disagreements & Resolutions
+(Document where CSAs disagreed, the arguments made, and how it was resolved)
+
+RULES:
+- Every decision MUST be traceable to something discussed in the debate.
+- Capture the actual alternatives discussed, not hypothetical ones.
+- Be specific about technology choices, configurations, and tradeoffs.
+- If a decision was contentious, document both sides fairly.
+- Include "Not addressed in the session" for standard ADR sections where the
+  debate provided no input.
+"""
+
 _USER_STORIES_SYSTEM_PROMPT = """\
 You are a senior technical product manager synthesizing a multi-stakeholder design session.
 Based on the debate history provided, produce a complete User Stories & Tasks backlog
@@ -417,16 +478,18 @@ Be specific. Every item must be traceable to the debate.
 # ---------------------------------------------------------------------------
 
 DOC_TYPES: list[dict] = [
-    {"key": "architecture",    "label": "Architecture Recommendation",  "icon": "🏗️", "filename": "oge_architecture_recommendation.md"},
-    {"key": "project_plan",    "label": "Project Plan",                 "icon": "📋", "filename": "oge_project_plan.md"},
-    {"key": "technical_specs", "label": "Technical Specifications",     "icon": "⚙️", "filename": "oge_technical_specs.md"},
-    {"key": "roadmap",         "label": "Detailed Roadmap",             "icon": "🗺️", "filename": "oge_roadmap.md"},
-    {"key": "risk_register",   "label": "Risk Register",                "icon": "⚠️", "filename": "oge_risk_register.md"},
-    {"key": "gsa_assessment",  "label": "GSA Compliance Assessment",    "icon": "🏅", "filename": "oge_gsa_assessment.md"},
-    {"key": "user_stories",    "label": "User Stories & Tasks",         "icon": "📝", "filename": "oge_user_stories.md"},
+    {"key": "adr",             "label": "Architecture Decision Record", "icon": "📐", "filename": "architecture_decision_record.md"},
+    {"key": "architecture",    "label": "Architecture Recommendation",  "icon": "🏗️", "filename": "architecture_recommendation.md"},
+    {"key": "project_plan",    "label": "Project Plan",                 "icon": "📋", "filename": "project_plan.md"},
+    {"key": "technical_specs", "label": "Technical Specifications",     "icon": "⚙️", "filename": "technical_specs.md"},
+    {"key": "roadmap",         "label": "Detailed Roadmap",             "icon": "🗺️", "filename": "roadmap.md"},
+    {"key": "risk_register",   "label": "Risk Register",                "icon": "⚠️", "filename": "risk_register.md"},
+    {"key": "gsa_assessment",  "label": "GSA Compliance Assessment",    "icon": "🏅", "filename": "gsa_assessment.md"},
+    {"key": "user_stories",    "label": "User Stories & Tasks",         "icon": "📝", "filename": "user_stories.md"},
 ]
 
 _DOC_TYPE_PROMPTS: dict[str, str] = {
+    "adr":             _ADR_SYSTEM_PROMPT,
     "architecture":    _SYNTHESIS_SYSTEM_PROMPT,
     "project_plan":    _PROJECT_PLAN_SYSTEM_PROMPT,
     "technical_specs": _TECHNICAL_SPECS_SYSTEM_PROMPT,
