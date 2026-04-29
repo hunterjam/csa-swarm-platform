@@ -136,7 +136,13 @@ function PlanContent() {
         </div>
       )}
 
-      <div className="flex justify-end pt-2">
+      <div className="flex justify-between pt-2">
+        <button
+          onClick={() => router.push(`/debate${sessionId ? `?session=${sessionId}` : ''}`)}
+          className="border border-brand-600 text-brand-600 px-5 py-2 rounded text-sm font-medium hover:bg-brand-50 transition-colors"
+        >
+          ← Previous: Debate
+        </button>
         <button
           onClick={() => router.push(`/recommendations${sessionId ? `?session=${sessionId}` : ''}`)}
           className="bg-brand-600 text-white px-5 py-2 rounded text-sm font-medium hover:bg-brand-700 transition-colors"
