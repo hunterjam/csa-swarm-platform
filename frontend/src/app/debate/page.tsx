@@ -90,10 +90,67 @@ const RoundCard = memo(function RoundCard({ round }: { round: Round }) {
   );
 });
 
+// Copies raw markdown source to the clipboard. Most note-taking apps
+// (OneNote, Notion, Obsidian, GitHub, VS Code, Teams) render pasted markdown
+// natively, so plain text is the best lowest-common-denominator format.
+function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+  async function handleCopy() {
+    if (!text) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Fallback for non-secure contexts
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Swallow — the button reverts and the user can retry.
+    }
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      disabled={!text}
+      title="Copy markdown to clipboard"
+      className="text-[11px] text-gray-500 hover:text-brand-700 hover:bg-brand-50 disabled:opacity-40 px-2 py-0.5 rounded border border-gray-200 transition-colors flex items-center gap-1"
+    >
+      {copied ? (
+        <>
+          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          Copied
+        </>
+      ) : (
+        <>
+          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <rect x="9" y="9" width="11" height="11" rx="2" />
+            <path d="M5 15V5a2 2 0 0 1 2-2h10" />
+          </svg>
+          {label}
+        </>
+      )}
+    </button>
+  );
+}
+
 const AgentCard = memo(function AgentCard({ resp, full }: { resp: CsaResponse; full?: boolean }) {
   return (
     <div className={`border-l-4 rounded p-3 ${ROLE_COLORS[resp.role] ?? 'border-gray-300 bg-gray-50'} ${full ? 'col-span-3' : ''}`}>
-      <p className="text-xs font-bold text-gray-600 mb-2">{resp.display_name}</p>
+      <div className="flex items-center justify-between mb-2 gap-2">
+        <p className="text-xs font-bold text-gray-600">{resp.display_name}</p>
+        <CopyButton text={resp.text} label={full ? 'Copy response' : 'Copy'} />
+      </div>
       <Markdown size="compact">{resp.text}</Markdown>
     </div>
   );
@@ -231,7 +288,10 @@ function DebateContent() {
           )}
           {dirBuffer && (
             <div className={`border-l-4 rounded p-3 ${ROLE_COLORS['dir_csa']}`}>
-              <p className="text-xs font-bold text-gray-600 mb-2">Dir CSA (streaming…)</p>
+              <div className="flex items-center justify-between mb-2 gap-2">
+                <p className="text-xs font-bold text-gray-600">Dir CSA{running ? ' (streaming…)' : ''}</p>
+                <CopyButton text={dirBuffer} label="Copy response" />
+              </div>
               <Markdown size="compact">{dirBuffer}</Markdown>
             </div>
           )}
