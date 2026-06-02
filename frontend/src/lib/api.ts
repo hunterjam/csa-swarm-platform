@@ -106,6 +106,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ repo, pat, path: path || '', label: label || '' }),
       }),
+    addTeams: (sessionId: string, joinUrl: string, graphToken: string, label?: string) =>
+      _fetch<GroundingSource>(`/api/sessions/${sessionId}/context/teams`, {
+        method: 'POST',
+        body: JSON.stringify({ join_url: joinUrl, graph_token: graphToken, label: label || '' }),
+      }),
   },
 
   recommendations: {

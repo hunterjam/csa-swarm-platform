@@ -6,6 +6,7 @@ Grounding / context management:
   POST   /api/sessions/{session_id}/context/url    fetch URL
   POST   /api/sessions/{session_id}/context/text   add pasted text
   POST   /api/sessions/{session_id}/context/github fetch GitHub repo (PAT auth)
+  POST   /api/sessions/{session_id}/context/teams  fetch Teams meeting transcript
   GET    /api/sessions/{session_id}/context        list sources
   DELETE /api/sessions/{session_id}/context/{pos}  remove source
   PATCH  /api/sessions/{session_id}/context/{pos}/pin  toggle pin
@@ -23,6 +24,7 @@ from api.auth import get_current_user
 from api.deps import get_store
 from swarm.context_loader import load_uploaded_file
 from swarm.cosmos_store import CosmosStore
+from swarm.teams_loader import TeamsLoaderError, load_teams_meeting_transcript
 
 router = APIRouter(prefix="/api/sessions/{session_id}/context", tags=["context"])
 
@@ -42,6 +44,12 @@ class GitHubRequest(BaseModel):
     pat: str        # GitHub Personal Access Token
     path: str = ""  # optional subdirectory or file path within the repo
     label: str = ""
+
+
+class TeamsRequest(BaseModel):
+    join_url: str            # Teams meeting Join URL
+    graph_token: str         # Microsoft Graph access token (delegated)
+    label: str = ""          # optional override label
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -224,6 +232,42 @@ async def add_github_context(
         return source
 
     raise HTTPException(status_code=422, detail="Unexpected GitHub API response format")
+
+
+@router.post("/teams", status_code=status.HTTP_201_CREATED)
+async def add_teams_context(
+    session_id: str,
+    body: TeamsRequest,
+    user: dict[str, Any] = Depends(get_current_user),
+    store: CosmosStore = Depends(get_store),
+) -> dict:
+    session = await store.get_session(session_id=session_id, user_id=user["sub"])
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    join_url = body.join_url.strip()
+    if not join_url:
+        raise HTTPException(status_code=400, detail="join_url must not be empty")
+    if not body.graph_token.strip():
+        raise HTTPException(status_code=400, detail="graph_token must not be empty")
+
+    try:
+        label, text = await load_teams_meeting_transcript(
+            join_url=join_url,
+            graph_token=body.graph_token.strip(),
+        )
+    except TeamsLoaderError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"Graph request error: {exc}") from exc
+
+    source = await store.save_grounding_source(
+        session_id=session_id,
+        filename=join_url,
+        label=body.label.strip() or label,
+        content=text,
+    )
+    return source
 
 
 @router.get("")

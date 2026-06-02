@@ -8,6 +8,11 @@ import { api } from '@/lib/api';
 import type { GroundingSource } from '@/lib/types';
 import { useSession } from '@/lib/session-context';
 import { InfoBanner } from '@/components/InfoBanner';
+import {
+  acquireGraphToken,
+  GRAPH_TEAMS_TRANSCRIPT_SCOPES,
+  GraphTokenError,
+} from '@/lib/auth';
 
 function ContextContent() {
   const params = useSearchParams();
@@ -21,7 +26,7 @@ function ContextContent() {
   }, [params]);
 
   const [sources, setSources] = useState<GroundingSource[]>([]);
-  const [tab, setTab] = useState<'file' | 'url' | 'text' | 'github'>('file');
+  const [tab, setTab] = useState<'file' | 'url' | 'text' | 'github' | 'teams'>('file');
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');  // e.g. "Uploading 2 of 5…"
   // file tab
@@ -37,6 +42,9 @@ function ContextContent() {
   const [ghPat, setGhPat] = useState('');
   const [ghPath, setGhPath] = useState('');
   const [ghLabel, setGhLabel] = useState('');
+  // teams tab
+  const [teamsJoinUrl, setTeamsJoinUrl] = useState('');
+  const [teamsLabel, setTeamsLabel] = useState('');
   const [error, setError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -128,6 +136,27 @@ function ContextContent() {
     }
   }
 
+  async function handleAddTeams() {
+    if (!teamsJoinUrl.trim() || !sessionId) return;
+    setUploading(true);
+    setError('');
+    try {
+      const token = await acquireGraphToken(GRAPH_TEAMS_TRANSCRIPT_SCOPES);
+      await api.context.addTeams(sessionId, teamsJoinUrl.trim(), token, teamsLabel.trim());
+      setTeamsJoinUrl('');
+      setTeamsLabel('');
+      await load();
+    } catch (e: unknown) {
+      if (e instanceof GraphTokenError) {
+        setError(`Microsoft Graph sign-in failed: ${e.message}`);
+      } else {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function handleDelete(pos: string) {
     if (!sessionId) return;
     try {
@@ -167,8 +196,8 @@ function ContextContent() {
       </InfoBanner>
 
       {/* Tab selector */}
-      <div className="border-b flex gap-0">
-        {(['file', 'url', 'text', 'github'] as const).map(t => (
+      <div className="border-b flex gap-0 flex-wrap">
+        {(['file', 'url', 'text', 'github', 'teams'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -178,7 +207,15 @@ function ContextContent() {
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            {t === 'file' ? '📄 Upload File' : t === 'url' ? '🔗 URL' : t === 'github' ? '🐙 GitHub' : '📋 Paste Text'}
+            {t === 'file'
+              ? '📄 Upload File'
+              : t === 'url'
+              ? '🔗 URL'
+              : t === 'github'
+              ? '🐙 GitHub'
+              : t === 'teams'
+              ? '💬 Teams'
+              : '📋 Paste Text'}
           </button>
         ))}
       </div>
@@ -299,6 +336,36 @@ function ContextContent() {
               className="bg-brand-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
             >
               {uploading ? 'Fetching…' : 'Fetch & Add'}
+            </button>
+          </>
+        )}
+
+        {tab === 'teams' && (
+          <>
+            <p className="text-sm font-medium text-gray-700">Import a Microsoft Teams meeting transcript</p>
+            <input
+              value={teamsJoinUrl}
+              onChange={e => setTeamsJoinUrl(e.target.value)}
+              placeholder="https://teams.microsoft.com/l/meetup-join/…"
+              className="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+            />
+            <input
+              value={teamsLabel}
+              onChange={e => setTeamsLabel(e.target.value)}
+              placeholder="Label (optional — defaults to meeting subject)"
+              className="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+            />
+            <p className="text-xs text-gray-400">
+              Paste a Teams meeting <strong>Join URL</strong>. The signed-in user must be the meeting <strong>organizer</strong>, transcription must have been enabled, and the meeting must have ended.
+              You will be prompted to consent to the Microsoft Graph delegated permissions <code>OnlineMeetings.Read</code> and <code>OnlineMeetingArtifact.Read.All</code> the first time you use this (tenant admin consent may be required).
+              The most-recent transcript is downloaded as WebVTT, converted to a Speaker: text log, and stored as a grounding source.
+            </p>
+            <button
+              onClick={handleAddTeams}
+              disabled={uploading || !teamsJoinUrl.trim()}
+              className="bg-brand-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+            >
+              {uploading ? 'Fetching…' : 'Fetch Transcript'}
             </button>
           </>
         )}
