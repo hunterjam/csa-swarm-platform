@@ -11,6 +11,7 @@ import { InfoBanner } from '@/components/InfoBanner';
 import {
   acquireGraphToken,
   GRAPH_TEAMS_TRANSCRIPT_SCOPES,
+  GRAPH_TEAMS_CHANNEL_SCOPES,
   GraphTokenError,
 } from '@/lib/auth';
 
@@ -26,7 +27,7 @@ function ContextContent() {
   }, [params]);
 
   const [sources, setSources] = useState<GroundingSource[]>([]);
-  const [tab, setTab] = useState<'file' | 'url' | 'text' | 'github' | 'teams'>('file');
+  const [tab, setTab] = useState<'file' | 'url' | 'text' | 'github' | 'teams' | 'channel'>('file');
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');  // e.g. "Uploading 2 of 5…"
   // file tab
@@ -45,6 +46,11 @@ function ContextContent() {
   // teams tab
   const [teamsJoinUrl, setTeamsJoinUrl] = useState('');
   const [teamsLabel, setTeamsLabel] = useState('');
+  // channel tab
+  const [channelLink, setChannelLink] = useState('');
+  const [channelMax, setChannelMax] = useState(20);
+  const [channelIncludeReplies, setChannelIncludeReplies] = useState(true);
+  const [channelLabel, setChannelLabel] = useState('');
   const [error, setError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -157,6 +163,31 @@ function ContextContent() {
     }
   }
 
+  async function handleAddChannel() {
+    if (!channelLink.trim() || !sessionId) return;
+    setUploading(true);
+    setError('');
+    try {
+      const token = await acquireGraphToken(GRAPH_TEAMS_CHANNEL_SCOPES);
+      await api.context.addTeamsChannel(sessionId, channelLink.trim(), token, {
+        maxMessages: channelMax,
+        includeReplies: channelIncludeReplies,
+        label: channelLabel.trim(),
+      });
+      setChannelLink('');
+      setChannelLabel('');
+      await load();
+    } catch (e: unknown) {
+      if (e instanceof GraphTokenError) {
+        setError(`Microsoft Graph sign-in failed: ${e.message}`);
+      } else {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function handleDelete(pos: string) {
     if (!sessionId) return;
     try {
@@ -197,7 +228,7 @@ function ContextContent() {
 
       {/* Tab selector */}
       <div className="border-b flex gap-0 flex-wrap">
-        {(['file', 'url', 'text', 'github', 'teams'] as const).map(t => (
+        {(['file', 'url', 'text', 'github', 'teams', 'channel'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -214,7 +245,9 @@ function ContextContent() {
               : t === 'github'
               ? '🐙 GitHub'
               : t === 'teams'
-              ? '💬 Teams'
+              ? '💬 Teams Meeting'
+              : t === 'channel'
+              ? '🗨️ Teams Channel'
               : '📋 Paste Text'}
           </button>
         ))}
@@ -366,6 +399,56 @@ function ContextContent() {
               className="bg-brand-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
             >
               {uploading ? 'Fetching…' : 'Fetch Transcript'}
+            </button>
+          </>
+        )}
+
+        {tab === 'channel' && (
+          <>
+            <p className="text-sm font-medium text-gray-700">Import a Microsoft Teams channel thread</p>
+            <input
+              value={channelLink}
+              onChange={e => setChannelLink(e.target.value)}
+              placeholder="https://teams.microsoft.com/l/channel/…?groupId=…&tenantId=…"
+              className="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="text-sm text-gray-700 flex items-center gap-2">
+                Messages:
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={channelMax}
+                  onChange={e => setChannelMax(Math.max(1, Math.min(100, parseInt(e.target.value, 10) || 20)))}
+                  className="border rounded px-2 py-1 w-20 text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+                />
+              </label>
+              <label className="text-sm text-gray-700 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={channelIncludeReplies}
+                  onChange={e => setChannelIncludeReplies(e.target.checked)}
+                />
+                Include replies
+              </label>
+            </div>
+            <input
+              value={channelLabel}
+              onChange={e => setChannelLabel(e.target.value)}
+              placeholder="Label (optional — defaults to team / channel name)"
+              className="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+            />
+            <p className="text-xs text-gray-400">
+              In Teams, open the channel → <strong>… → Get link to channel</strong> and paste the URL above. The signed-in user must be a member of the team. You will be prompted to consent to the Microsoft Graph delegated permissions <code>ChannelMessage.Read.All</code> and <code>Team.ReadBasic.All</code> the first time you use this (tenant admin consent may be required).
+              The top-level messages are pulled newest-first then rendered chronologically; replies are nested under each thread when enabled.
+            </p>
+            <button
+              onClick={handleAddChannel}
+              disabled={uploading || !channelLink.trim()}
+              className="bg-brand-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+            >
+              {uploading ? 'Fetching…' : 'Fetch Thread'}
             </button>
           </>
         )}

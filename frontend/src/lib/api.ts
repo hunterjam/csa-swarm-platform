@@ -111,6 +111,22 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ join_url: joinUrl, graph_token: graphToken, label: label || '' }),
       }),
+    addTeamsChannel: (
+      sessionId: string,
+      channelLink: string,
+      graphToken: string,
+      opts: { maxMessages?: number; includeReplies?: boolean; label?: string } = {},
+    ) =>
+      _fetch<GroundingSource>(`/api/sessions/${sessionId}/context/teams-channel`, {
+        method: 'POST',
+        body: JSON.stringify({
+          channel_link: channelLink,
+          graph_token: graphToken,
+          max_messages: opts.maxMessages ?? 20,
+          include_replies: opts.includeReplies ?? true,
+          label: opts.label || '',
+        }),
+      }),
   },
 
   recommendations: {

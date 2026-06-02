@@ -41,6 +41,11 @@ export const GRAPH_TEAMS_TRANSCRIPT_SCOPES = [
   'OnlineMeetingArtifact.Read.All',
 ];
 
+export const GRAPH_TEAMS_CHANNEL_SCOPES = [
+  'ChannelMessage.Read.All',
+  'Team.ReadBasic.All',
+];
+
 export class GraphTokenError extends Error {
   constructor(message: string) {
     super(message);

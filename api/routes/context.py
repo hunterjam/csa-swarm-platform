@@ -7,6 +7,7 @@ Grounding / context management:
   POST   /api/sessions/{session_id}/context/text   add pasted text
   POST   /api/sessions/{session_id}/context/github fetch GitHub repo (PAT auth)
   POST   /api/sessions/{session_id}/context/teams  fetch Teams meeting transcript
+  POST   /api/sessions/{session_id}/context/teams-channel  fetch Teams channel thread
   GET    /api/sessions/{session_id}/context        list sources
   DELETE /api/sessions/{session_id}/context/{pos}  remove source
   PATCH  /api/sessions/{session_id}/context/{pos}/pin  toggle pin
@@ -24,7 +25,11 @@ from api.auth import get_current_user
 from api.deps import get_store
 from swarm.context_loader import load_uploaded_file
 from swarm.cosmos_store import CosmosStore
-from swarm.teams_loader import TeamsLoaderError, load_teams_meeting_transcript
+from swarm.teams_loader import (
+    TeamsLoaderError,
+    load_teams_channel_thread,
+    load_teams_meeting_transcript,
+)
 
 router = APIRouter(prefix="/api/sessions/{session_id}/context", tags=["context"])
 
@@ -50,6 +55,14 @@ class TeamsRequest(BaseModel):
     join_url: str            # Teams meeting Join URL
     graph_token: str         # Microsoft Graph access token (delegated)
     label: str = ""          # optional override label
+
+
+class TeamsChannelRequest(BaseModel):
+    channel_link: str            # Teams "Get link to channel" URL
+    graph_token: str             # Microsoft Graph access token (delegated)
+    max_messages: int = 20       # how many top-level messages to fetch
+    include_replies: bool = True # also pull each thread's replies
+    label: str = ""              # optional override label
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -264,6 +277,44 @@ async def add_teams_context(
     source = await store.save_grounding_source(
         session_id=session_id,
         filename=join_url,
+        label=body.label.strip() or label,
+        content=text,
+    )
+    return source
+
+
+@router.post("/teams-channel", status_code=status.HTTP_201_CREATED)
+async def add_teams_channel_context(
+    session_id: str,
+    body: TeamsChannelRequest,
+    user: dict[str, Any] = Depends(get_current_user),
+    store: CosmosStore = Depends(get_store),
+) -> dict:
+    session = await store.get_session(session_id=session_id, user_id=user["sub"])
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    channel_link = body.channel_link.strip()
+    if not channel_link:
+        raise HTTPException(status_code=400, detail="channel_link must not be empty")
+    if not body.graph_token.strip():
+        raise HTTPException(status_code=400, detail="graph_token must not be empty")
+
+    try:
+        label, text = await load_teams_channel_thread(
+            channel_link=channel_link,
+            graph_token=body.graph_token.strip(),
+            max_messages=body.max_messages,
+            include_replies=body.include_replies,
+        )
+    except TeamsLoaderError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"Graph request error: {exc}") from exc
+
+    source = await store.save_grounding_source(
+        session_id=session_id,
+        filename=channel_link,
         label=body.label.strip() or label,
         content=text,
     )
