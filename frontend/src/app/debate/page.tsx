@@ -13,6 +13,15 @@ import { InfoBanner } from '@/components/InfoBanner';
 // ── Starter prompts ─────────────────────────────────────────────────────
 const STARTER_PROMPTS: { label: string; text: string }[] = [
   {
+    label: 'Tip of the Spear — State Justice AI Assistant',
+    text:
+      'A state justice agency wants to build a secure AI assistant to summarize case documents, ' +
+      'support staff research, and improve response time. They may require CJIS and FedRAMP ' +
+      'alignment. They are considering Azure OpenAI, Azure AI Search, App Service or Container ' +
+      'Apps, Storage, Key Vault, Private Link, Azure Monitor, and Microsoft Defender for Cloud. ' +
+      'Determine whether this is ready for a Tip of the Spear delivery motion.',
+  },
+  {
     label: 'Baseline Azure monitoring architecture',
     text:
       "What should the baseline Azure-native monitoring architecture look like for OGE customers? " +

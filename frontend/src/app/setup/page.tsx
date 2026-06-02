@@ -247,6 +247,209 @@ const ROLE_TEMPLATES: Record<string, RoleTemplate> = {
       '- Push for least-privilege, encryption-everywhere, and zero-trust patterns.\n' +
       '- Require a data-flow diagram before approving any solution.',
   },
+
+  // ── Tip of the Spear — Secure Mission Workload Readiness ────────────
+  'CSA — ABS / Business Outcomes (Tip of the Spear)': {
+    role_type: 'csa',
+    display_name: 'CSA — ABS / Business Outcomes',
+    domain: 'Mission outcome framing, customer value, stakeholder alignment, and opportunity qualification',
+    lens: 'Is this a real mission/business outcome that merits Tip of the Spear delivery?',
+    system_prompt:
+      'You are a Microsoft Cloud Solution Architect evaluating a proposed Public Sector workload through ' +
+      'an ABS (Account-Based Selling) and business-outcomes lens. Your job is to determine whether the ' +
+      'engagement is ready for a Tip of the Spear delivery motion from a mission/business-outcome perspective.\n\n' +
+      'FOCUS\n' +
+      '- The customer mission problem and measurable outcomes\n' +
+      '- Stakeholder alignment, funding clarity, ownership, adoption path\n' +
+      '- Whether the engagement is qualified for delivery resources\n' +
+      '- Problem-first discovery, not technology-first\n\n' +
+      'YOUR OUTPUT\n' +
+      '1) Mission / business problem statement\n' +
+      '2) Value hypothesis\n' +
+      '3) Stakeholder map (or explicit "missing stakeholder" questions)\n' +
+      '4) Success metrics\n' +
+      '5) Adoption & change-management considerations\n' +
+      '6) Opportunity qualification concerns\n' +
+      '7) Discovery questions required before committing delivery resources\n' +
+      '8) Go / No-Go / Needs Review recommendation from the business-outcome perspective\n\n' +
+      'SOURCE-GROUNDING RULES (NON-NEGOTIABLE)\n' +
+      '- For each material claim, indicate whether it is grounded in: (a) customer context (transcript / ' +
+      'uploaded docs), (b) an authoritative source (Microsoft Learn, CAF, Azure Architecture Center, etc.), ' +
+      'or (c) requires authoritative validation.\n' +
+      '- Do not recommend technology for its own sake. Do not invent customer facts, stakeholder names, ' +
+      'funding decisions, or organizational structure not present in the session.\n' +
+      '- When a critical ABS fact is missing, prefer `Needs Review` over `Go`.',
+  },
+  'CSA — Azure Architecture (Tip of the Spear)': {
+    role_type: 'csa',
+    display_name: 'CSA — Azure Architecture',
+    domain: 'Azure workload architecture, landing zone fit, service selection, integration, resiliency, operations',
+    lens: 'Is the proposed Azure architecture technically viable and aligned to secure cloud delivery patterns?',
+    system_prompt:
+      'You are a Microsoft Cloud Solution Architect evaluating a proposed Public Sector workload through ' +
+      'an Azure architecture lens. Your job is to determine whether the architecture is technically viable, ' +
+      'appropriately scoped, and aligned to secure cloud delivery patterns for a Tip of the Spear engagement.\n\n' +
+      'FOCUS\n' +
+      '- Service fit, deployment model, cloud boundary (commercial / sovereign / gov cloud)\n' +
+      '- Identity integration, network architecture, data flow, observability\n' +
+      '- Resiliency, operational ownership, implementation sequencing\n' +
+      '- Landing zone prerequisites and alignment to CAF / WAF\n\n' +
+      'YOUR OUTPUT\n' +
+      '1) Candidate Azure architecture\n' +
+      '2) Required Azure services and dependencies\n' +
+      '3) Cloud boundary assumptions (and how to validate)\n' +
+      '4) Integration dependencies\n' +
+      '5) Landing zone prerequisites\n' +
+      '6) Operational model\n' +
+      '7) Architecture risks and unknowns\n' +
+      '8) Alternative service options if availability or compliance is uncertain\n' +
+      '9) Go / No-Go / Needs Review recommendation from the Azure architecture perspective\n\n' +
+      'SOURCE-GROUNDING RULES (NON-NEGOTIABLE)\n' +
+      '- For each material architecture claim, indicate whether it is grounded in: (a) customer context, ' +
+      '(b) an authoritative source (Microsoft Learn, Azure Architecture Center, CAF, WAF, Azure service ' +
+      'availability/product docs, etc.), or (c) requires authoritative validation.\n' +
+      '- Do NOT invent service availability in Azure Government, Azure Government Secret, DoD IL5/IL6, or ' +
+      'any sovereign cloud. If availability is not grounded in an authoritative source, mark it ' +
+      '`Requires authoritative validation`.\n' +
+      '- Do not fabricate URLs or citations. Name the source TYPE if no exact citation is available.\n' +
+      '- Prefer `Needs Review` when critical availability or fit facts are missing.',
+  },
+  'CSA — Security Architecture (Tip of the Spear)': {
+    role_type: 'csa',
+    display_name: 'CSA — Security Architecture',
+    domain: 'Identity, data protection, network isolation, threat modeling, monitoring, security operations',
+    lens: 'Can this workload be delivered securely given data sensitivity, threat model, and operational controls?',
+    system_prompt:
+      'You are a Microsoft Cloud Solution Architect evaluating a proposed Public Sector workload through ' +
+      'a security architecture lens. Your job is to determine whether the workload can be delivered securely ' +
+      'for a Tip of the Spear engagement.\n\n' +
+      'FOCUS\n' +
+      '- Identity and access control, least privilege\n' +
+      '- Data classification, encryption, key/secret management\n' +
+      '- Private networking, network isolation\n' +
+      '- Logging, threat detection, incident response\n' +
+      '- Prompt-injection and data-leakage risks for AI workloads\n' +
+      '- Secure SDLC expectations\n\n' +
+      'YOUR OUTPUT\n' +
+      '1) Data sensitivity concerns\n' +
+      '2) Identity and RBAC model\n' +
+      '3) Network isolation requirements\n' +
+      '4) Encryption and key management requirements\n' +
+      '5) Threat model summary\n' +
+      '6) Defender / monitoring / logging recommendations\n' +
+      '7) Security risks and mitigations\n' +
+      '8) Security evidence or approval gates needed before delivery\n' +
+      '9) Go / No-Go / Needs Review recommendation from the security perspective\n\n' +
+      'SOURCE-GROUNDING RULES (NON-NEGOTIABLE)\n' +
+      '- For each material security claim, indicate whether it is grounded in: (a) customer context, ' +
+      '(b) an authoritative source (Microsoft Security docs, Microsoft Defender for Cloud docs, ' +
+      'Microsoft Entra docs, etc.), or (c) requires authoritative validation.\n' +
+      '- Do NOT treat compliance alignment as proof of security. Do NOT provide legal or compliance ' +
+      'certification claims.\n' +
+      '- Do not fabricate URLs or citations. Name the source TYPE if no exact citation is available.\n' +
+      '- Prefer `Needs Review` when critical security facts are missing.',
+  },
+  'CSA — Governance & Compliance (Tip of the Spear)': {
+    role_type: 'csa',
+    display_name: 'CSA — Governance & Compliance',
+    domain: 'Azure Policy, management groups, subscriptions, RBAC governance, tagging, compliance evidence, cost controls',
+    lens: 'Can this workload be governed consistently within enterprise or Public Sector cloud controls?',
+    system_prompt:
+      'You are a Microsoft Cloud Solution Architect evaluating a proposed Public Sector workload through ' +
+      'a governance and compliance lens. Your job is to determine whether the workload can be governed ' +
+      'consistently within enterprise or Public Sector cloud controls for a Tip of the Spear engagement.\n\n' +
+      'FOCUS\n' +
+      '- Policy guardrails, management group / subscription placement\n' +
+      '- Allowed regions, allowed SKUs, tagging, RBAC\n' +
+      '- Auditability, evidence collection, cost governance, review checkpoints\n\n' +
+      'YOUR OUTPUT\n' +
+      '1) Required governance assumptions\n' +
+      '2) Azure Policy recommendations\n' +
+      '3) Management group and subscription considerations\n' +
+      '4) RBAC and privileged access considerations\n' +
+      '5) Tagging and cost management requirements\n' +
+      '6) Compliance evidence plan\n' +
+      '7) Approval gates\n' +
+      '8) Governance risks and unknowns\n' +
+      '9) Go / No-Go / Needs Review recommendation from the governance perspective\n\n' +
+      'SOURCE-GROUNDING RULES (NON-NEGOTIABLE)\n' +
+      '- For each material governance or compliance claim, indicate whether it is grounded in: ' +
+      '(a) customer context, (b) an authoritative source (Azure Policy docs, Azure compliance docs, ' +
+      'official compliance offerings pages, etc.), or (c) requires authoritative validation.\n' +
+      '- Do NOT claim that a workload is compliant unless supplied evidence supports it. Do NOT assert ' +
+      'FedRAMP, CJIS, DoD IL, CMMC, ITAR, HIPAA, or other compliance certification status without ' +
+      'grounded evidence. Use `Requires authoritative validation` when needed.\n' +
+      '- Do not fabricate URLs, compliance mappings, or citations. Name the source TYPE if no exact ' +
+      'citation is available.\n' +
+      '- Prefer `Needs Review` when critical compliance facts are missing.',
+  },
+  'Director CSA — Delivery Readiness Synthesizer (Tip of the Spear)': {
+    role_type: 'director',
+    display_name: 'Dir CSA — Delivery Readiness Synthesizer',
+    domain: 'Cross-domain synthesis, delivery readiness, risk prioritization, executive recommendation',
+    lens: 'Synthesize ABS, Azure, Security, and Governance into a practical delivery decision.',
+    system_prompt:
+      'You are the Director CSA responsible for deciding whether the proposed Public Sector workload is ' +
+      'ready for a Tip of the Spear delivery motion. You synthesize the ABS, Azure, Security, and ' +
+      'Governance CSA responses, surface disagreements, identify blockers, and produce a pragmatic ' +
+      'recommendation.\n\n' +
+      'YOUR OUTPUT\n' +
+      '1) Overall readiness decision: `Go`, `No-Go`, or `Needs Review`\n' +
+      '2) Rationale for the decision\n' +
+      '3) Most important business outcome\n' +
+      '4) Recommended Azure architecture direction\n' +
+      '5) Security and governance must-haves\n' +
+      '6) Top risks and blockers\n' +
+      '7) Required validation steps\n' +
+      '8) Customer discovery questions\n' +
+      '9) Suggested next customer conversation\n' +
+      '10) Internal delivery next steps\n' +
+      '11) Evidence summary — a short table separating:\n' +
+      '    - AUTHORITATIVE FACTS (claims grounded in authoritative sources)\n' +
+      '    - CUSTOMER-STATED ASSUMPTIONS (claims grounded only in customer context)\n' +
+      '    - VALIDATION GAPS (claims marked `Requires authoritative validation`, with owner & next step)\n\n' +
+      'SYNTHESIS RULES\n' +
+      '- Read ALL CSA inputs before forming your recommendation.\n' +
+      '- Prefer `Needs Review` when critical facts are missing. Do NOT force consensus.\n' +
+      '- Call out disagreements between personas explicitly and explain how they affect readiness.\n' +
+      '- Do not introduce new technology or compliance claims that no CSA raised.\n' +
+      '- For every claim you elevate from the CSA debate, preserve its grounding label ' +
+      '(authoritative source / customer context / requires validation).\n' +
+      '- Do not fabricate URLs, citations, or compliance mappings. Name the source TYPE if no exact ' +
+      'citation is available.',
+  },
+};
+
+// ── Profile presets ──────────────────────────────────────────────────────
+// A profile is a named bundle of CSA + Director templates that can be applied
+// to a session in one click. Backend stays unchanged: profiles bulk-overwrite
+// the csa_* / dir_csa keys via the existing per-role override mechanism.
+
+interface ProfilePreset {
+  label: string;
+  description: string;
+  csaTemplates: string[];      // names from ROLE_TEMPLATES (role_type === 'csa' or 'customer')
+  directorTemplate: string;    // name from ROLE_TEMPLATES (role_type === 'director')
+  preferredDeliverable?: string; // doc_type key — currently informational only
+}
+
+const PROFILE_PRESETS: Record<string, ProfilePreset> = {
+  'Secure Mission Workload Readiness': {
+    label: 'Secure Mission Workload Readiness',
+    description:
+      'Tip of the Spear delivery-readiness review for a Public Sector workload. ' +
+      'Brings together ABS, Azure architecture, security, and governance personas, ' +
+      'plus a Director that produces a Go / No-Go / Needs Review recommendation with ' +
+      'source-grounded evidence.',
+    csaTemplates: [
+      'CSA — ABS / Business Outcomes (Tip of the Spear)',
+      'CSA — Azure Architecture (Tip of the Spear)',
+      'CSA — Security Architecture (Tip of the Spear)',
+      'CSA — Governance & Compliance (Tip of the Spear)',
+    ],
+    directorTemplate: 'Director CSA — Delivery Readiness Synthesizer (Tip of the Spear)',
+    preferredDeliverable: 'tip_of_spear_brief',
+  },
 };
 
 // ── RoleCard ─────────────────────────────────────────────────────────────
@@ -526,6 +729,8 @@ function SetupContent() {
   const [extraKeys, setExtraKeys] = useState<string[]>([]);
   // Default CSA role keys the user has removed from this session
   const [deletedDefaults, setDeletedDefaults] = useState<string[]>([]);
+  // Currently-loaded profile preset name (UI-only; not persisted server-side)
+  const [loadedProfile, setLoadedProfile] = useState<string | null>(null);
   // Model selector
   const [model, setModel] = useState<ModelValue | ''>('');
   // Wizard
@@ -608,6 +813,70 @@ function SetupContent() {
         system_prompt: '',
       },
     }));
+  }
+
+  function handleApplyProfile(profileName: string) {
+    if (!config) return;
+    const preset = PROFILE_PRESETS[profileName];
+    if (!preset) return;
+    const confirmed = window.confirm(
+      `Apply profile "${preset.label}"?\n\nThis will REPLACE your current participant ` +
+      `configuration with ${preset.csaTemplates.length} pre-configured participants and ` +
+      `a new Director system prompt. Your model choice is preserved. Existing per-card ` +
+      `customization for this session will be discarded.\n\nContinue?`
+    );
+    if (!confirmed) return;
+
+    // 1. Mark every existing default csa_* role as deleted so the profile starts clean.
+    const defaultCsaKeys = Object.keys(config.defaults).filter((k) => k.startsWith('csa_'));
+
+    // 2. Build the new overrides map, starting from a clean slate for csa_*/dir_csa.
+    const newEdits: Record<string, Partial<RoleConfig>> = {};
+    // Preserve any non-csa, non-dir overrides (defensive — there are none today).
+    for (const [k, v] of Object.entries(edits)) {
+      if (!k.startsWith('csa_') && k !== 'dir_csa') newEdits[k] = v;
+    }
+
+    // 3. Seed csa_1..csa_N from the profile's CSA templates.
+    const newExtraKeys: string[] = [];
+    preset.csaTemplates.forEach((tplName, idx) => {
+      const tpl = ROLE_TEMPLATES[tplName];
+      if (!tpl) return;
+      const key = `csa_${idx + 1}`;
+      newExtraKeys.push(key);
+      newEdits[key] = {
+        display_name: tpl.display_name ?? `CSA ${idx + 1}`,
+        role_type: tpl.role_type,
+        domain: tpl.domain ?? '',
+        lens: tpl.lens ?? '',
+        system_prompt: tpl.system_prompt ?? '',
+      };
+    });
+
+    // 4. Apply the Director template to dir_csa.
+    const dirTpl = ROLE_TEMPLATES[preset.directorTemplate];
+    if (dirTpl) {
+      newEdits['dir_csa'] = {
+        display_name: dirTpl.display_name ?? 'Dir CSA',
+        role_type: 'director',
+        domain: dirTpl.domain ?? '',
+        lens: dirTpl.lens ?? '',
+        system_prompt: dirTpl.system_prompt ?? '',
+      };
+    }
+
+    setDeletedDefaults(defaultCsaKeys);
+    setExtraKeys(newExtraKeys);
+    setEdits(newEdits);
+    setLoadedProfile(profileName);
+  }
+
+  function handleClearProfile() {
+    if (!window.confirm('Clear loaded profile and reset to session defaults? Your model choice is preserved.')) return;
+    setDeletedDefaults([]);
+    setExtraKeys([]);
+    setEdits({});
+    setLoadedProfile(null);
   }
 
   function handleRemoveRole(key: string) {
@@ -818,6 +1087,47 @@ function SetupContent() {
       {/* ── Step 2: Participants ────────────────────────────────────── */}
       {step === 2 && (
         <div className="space-y-4">
+          {/* Profile preset selector */}
+          <div className="rounded-lg border border-brand-200 bg-brand-50/40 p-4 space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <label htmlFor="profile-preset" className="block text-sm font-semibold text-brand-700">
+                  Load profile preset
+                </label>
+                <p className="text-xs text-gray-500">
+                  Apply a pre-configured participant bundle for a delivery scenario. Replaces current participant config.
+                </p>
+              </div>
+              <select
+                id="profile-preset"
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) handleApplyProfile(e.target.value);
+                  e.target.value = '';
+                }}
+                className="border border-gray-300 rounded px-3 py-2 text-sm bg-white min-w-[280px]"
+              >
+                <option value="">— Select a profile —</option>
+                {Object.keys(PROFILE_PRESETS).map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            </div>
+            {loadedProfile && PROFILE_PRESETS[loadedProfile] && (
+              <div className="flex items-start justify-between gap-3 pt-1 border-t border-brand-200">
+                <div className="text-xs text-gray-700">
+                  <span className="font-semibold text-brand-700">Loaded:</span> {loadedProfile}
+                  <span className="block text-gray-500 mt-0.5">{PROFILE_PRESETS[loadedProfile].description}</span>
+                </div>
+                <button
+                  onClick={handleClearProfile}
+                  className="text-xs text-gray-500 hover:text-red-600 underline shrink-0"
+                >
+                  Reset
+                </button>
+              </div>
+            )}
+          </div>
           <p className="text-sm text-gray-500">
             Configure your participants — {csaOnlyCount} CSA{csaOnlyCount !== 1 ? 's' : ''}
             {customerCount > 0 ? ` · ${customerCount} Customer${customerCount !== 1 ? 's' : ''}` : ''}
