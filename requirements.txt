@@ -16,7 +16,7 @@ python-jose[cryptography]>=3.5.0
 azure-identity>=1.25.3
 azure-cosmos>=4.15.0
 # Pinned: agent-framework-core 1.0.0rc3 requires exactly 2.0.0b4
-azure-ai-projects==2.0.0b4
+azure-ai-projects==2.2.0
 
 # ── Utilities ────────────────────────────────────────────────────────────
 python-dotenv>=1.2.2
