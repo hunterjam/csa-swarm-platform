@@ -13,6 +13,14 @@ services:
       path: Dockerfile.backend
       context: .
 
+  auth-gateway:
+    project: .
+    language: dotnet
+    host: containerapp
+    docker:
+      path: Dockerfile.gateway
+      context: .
+
   frontend:
     project: ./frontend
     language: js

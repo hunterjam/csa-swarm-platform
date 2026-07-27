@@ -17,6 +17,10 @@ param envSuffix string = 'dev'
 @description('Foundry model deployment name')
 param foundryModelDeploymentName string = 'gpt-4o'
 
+@secure()
+@description('Shared secret used by auth gateway when forwarding trusted user identity to backend')
+param gatewaySharedSecret string = newGuid()
+
 var prefix         = 'csa-swarm-${envSuffix}'
 var acrName        = 'csaswarm${replace(envSuffix, '-', '')}${uniqueString(resourceGroup().id)}'
 var aiServicesName = 'csaswarm-ai-${uniqueString(resourceGroup().id)}'
@@ -24,6 +28,7 @@ var aiStorageName  = 'csast${uniqueString(resourceGroup().id)}'
 var aiKvName       = 'csakv${uniqueString(resourceGroup().id)}'
 // Placeholder images used during initial provision — azd deploy replaces these with real ACR images
 var backendImage   = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+var authGatewayImage = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 var frontendImage  = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 var entraTenantId  = tenant().tenantId
 
@@ -200,6 +205,7 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
 // Compute FQDNs deterministically from environment domain to avoid
 // circular dependency between backend and frontend modules.
 var backendFqdn  = '${prefix}-backend.${containerAppsEnv.properties.defaultDomain}'
+var authGatewayFqdn = '${prefix}-auth-gateway.${containerAppsEnv.properties.defaultDomain}'
 var frontendFqdn = '${prefix}-frontend.${containerAppsEnv.properties.defaultDomain}'
 
 // AI Foundry endpoints derived from provisioned resources
@@ -254,8 +260,32 @@ module backend 'modules/containerapp.bicep' = {
       { name: 'COSMOS_KEY',                    value: '' }   // blank → managed identity
       { name: 'ENTRA_TENANT_ID',               value: entraTenantId }
       { name: 'ENTRA_CLIENT_ID',               value: entraClientId }
-      { name: 'AUTH_ENABLED',                  value: 'true' }
+      { name: 'AUTH_ENABLED',                  value: 'false' }
+      { name: 'AUTH_TRUSTED_GATEWAY',          value: 'true' }
+      { name: 'GATEWAY_SHARED_SECRET',         value: gatewaySharedSecret }
       { name: 'CORS_ORIGINS',                  value: 'https://${frontendFqdn}' }
+    ]
+  }
+}
+
+// ── Auth Gateway Container App (.NET, token validation + proxy) ───────────
+module authGateway 'modules/containerapp.bicep' = {
+  name: 'authGateway'
+  params: {
+    appName: '${prefix}-auth-gateway'
+    location: location
+    environmentId: containerAppsEnv.id
+    image: authGatewayImage
+    registryServer: acr.properties.loginServer
+    azdServiceName: 'auth-gateway'
+    targetPort: 8080
+    minReplicas: 0
+    env: [
+      { name: 'ENTRA_TENANT_ID',               value: entraTenantId }
+      { name: 'ENTRA_CLIENT_ID',               value: entraClientId }
+      { name: 'AUTH_ENABLED',                  value: 'true' }
+      { name: 'GATEWAY_BACKEND_URL',           value: 'https://${backendFqdn}' }
+      { name: 'GATEWAY_SHARED_SECRET',         value: gatewaySharedSecret }
     ]
   }
 }
@@ -273,7 +303,7 @@ module frontend 'modules/containerapp.bicep' = {
     targetPort: 3000
     minReplicas: 0
     env: [
-      { name: 'BACKEND_URL',               value: 'https://${backendFqdn}' }
+      { name: 'BACKEND_URL',               value: 'https://${authGatewayFqdn}' }
       { name: 'NEXT_PUBLIC_ENTRA_CLIENT_ID', value: entraClientId }
       { name: 'NEXT_PUBLIC_ENTRA_TENANT_ID', value: entraTenantId }
       { name: 'NEXT_PUBLIC_AUTH_ENABLED',    value: 'true' }
@@ -344,11 +374,22 @@ resource frontendAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = 
   }
 }
 
+resource authGatewayAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(acr.id, '${prefix}-auth-gateway', acrPullRoleId)
+  scope: acr
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPullRoleId)
+    principalId: authGateway.outputs.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // ── Outputs ──────────────────────────────────────────────────────────────
 // AZURE_CONTAINER_REGISTRY_ENDPOINT is the azd convention for ACR discovery
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = acr.properties.loginServer
 output acrName           string = acrName
 output backendUrl        string = 'https://${backend.outputs.fqdn}'
+output authGatewayUrl    string = 'https://${authGateway.outputs.fqdn}'
 output frontendUrl       string = 'https://${frontend.outputs.fqdn}'
 output foundryEndpoint   string = foundryProjectEndpoint
 output entraClientIdOut  string = entraClientId

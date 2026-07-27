@@ -1,0 +1,16 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+COPY gateway/CsaSwarm.AuthGateway.csproj gateway/
+RUN dotnet restore gateway/CsaSwarm.AuthGateway.csproj
+
+COPY gateway/ gateway/
+RUN dotnet publish gateway/CsaSwarm.AuthGateway.csproj -c Release -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+WORKDIR /app
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+
+COPY --from=build /app/publish .
+CMD ["dotnet", "CsaSwarm.AuthGateway.dll"]

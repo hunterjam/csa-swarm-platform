@@ -10,7 +10,25 @@ services:
     env_file: .env
     environment:
       AUTH_ENABLED: "false"
+      AUTH_TRUSTED_GATEWAY: "true"
+      GATEWAY_SHARED_SECRET: "local-dev-shared-secret"
       CORS_ORIGINS: "http://localhost:3000"
+    restart: unless-stopped
+
+  auth-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    ports:
+      - "8080:8080"
+    environment:
+      AUTH_ENABLED: "false"
+      GATEWAY_BACKEND_URL: "http://backend:8000"
+      GATEWAY_SHARED_SECRET: "local-dev-shared-secret"
+      ENTRA_TENANT_ID: "local-dev-tenant"
+      ENTRA_CLIENT_ID: "local-dev-client"
+    depends_on:
+      - backend
     restart: unless-stopped
 
   frontend:
@@ -20,8 +38,9 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: "http://localhost:8000"
+      BACKEND_URL: "http://auth-gateway:8080"
+      NEXT_PUBLIC_API_URL: "http://localhost:8080"
       NEXT_PUBLIC_AUTH_ENABLED: "false"
     depends_on:
-      - backend
+      - auth-gateway
     restart: unless-stopped

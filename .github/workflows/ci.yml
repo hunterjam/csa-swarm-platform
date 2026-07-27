@@ -65,3 +65,23 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000
           NEXT_PUBLIC_AUTH_ENABLED: "false"
+
+  auth-gateway:
+    name: Auth Gateway (.NET)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gateway
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore CsaSwarm.AuthGateway.csproj
+
+      - name: Build
+        run: dotnet build CsaSwarm.AuthGateway.csproj --configuration Release --no-restore

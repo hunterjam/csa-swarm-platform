@@ -22,13 +22,13 @@ The platform is designed around a zero-secret architecture:
 
 | Concern | Approach |
 |---|---|
-| Authentication | Microsoft Entra ID via MSAL (browser) + JWT validation against the tenant's JWKS endpoint (backend) |
+| Authentication | Microsoft Entra ID via MSAL (browser) + JWT validation in the .NET auth gateway (Microsoft Identity Web) |
 | Service-to-service auth | All Azure SDK calls use `DefaultAzureCredential`; in Container Apps this resolves to the system-assigned managed identity |
 | Cosmos DB network exposure | Private endpoint only; `publicNetworkAccess: Disabled` |
 | Cosmos DB data plane auth | RBAC role `Cosmos DB Built-in Data Contributor`; account keys are never used and `disableLocalAuth: true` |
 | Azure OpenAI auth | RBAC role `Cognitive Services OpenAI User`; no API keys |
 | Container image pull | Managed identity with `AcrPull`; ACR admin user disabled |
-| Multi-tenant data isolation | Every Cosmos query is filtered by `user_id` derived from the validated JWT |
+| Multi-tenant data isolation | Every Cosmos query is filtered by `user_id` derived from the authenticated gateway user payload |
 | LLM hallucination control | A grounding preamble is hardcoded into every agent system prompt; agents are instructed to refuse claims that are not present in the session grounding context or official Microsoft documentation |
 
 ## What Is Out of Scope
@@ -41,4 +41,5 @@ The platform is designed around a zero-secret architecture:
 
 - Rotate the Entra ID app registration's client secret if you ever create one (the default flow uses confidential-client redirects, no secret needed).
 - The `AUTH_ENABLED=false` flag is provided for **local development only**. Never set it in a deployed environment.
+- Keep `AUTH_TRUSTED_GATEWAY=true` and require a strong `GATEWAY_SHARED_SECRET` in deployed environments.
 - `CORS_ORIGINS` should be locked down to the frontend's deployed origin in production.

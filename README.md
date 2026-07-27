@@ -45,6 +45,11 @@ The platform replaces a manual, asynchronous process where a PM has to interview
                                 │ HTTPS + Entra ID Bearer JWT
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
+│      Auth Gateway (.NET, Entra token validation + trusted proxy)         │
+└───────────────────────────────┬─────────────────────────────────────────┘
+                                │ Trusted user header + shared secret
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────┐
 │                    FastAPI Backend (Azure Container Apps)                │
 │                                                                         │
 │  /api/sessions        – session CRUD                                    │
@@ -64,9 +69,10 @@ The platform replaces a manual, asynchronous process where a PM has to interview
 ```
 
 **Key infrastructure decisions:**
-- Both Container Apps run inside a VNet-injected Container Apps Environment, reaching Cosmos DB over a private endpoint — `publicNetworkAccess` is disabled on Cosmos.
+- All three Container Apps (frontend, auth gateway, backend) run inside a VNet-injected Container Apps Environment, reaching Cosmos DB over a private endpoint — `publicNetworkAccess` is disabled on Cosmos.
 - All credentials are eliminated via Azure Managed Identity + RBAC; no secrets in app settings.
-- Authentication is Microsoft Entra ID only: the frontend uses MSAL and sends a Bearer JWT; the backend validates it against the Entra tenant's JWKS endpoint.
+- In production deployments, token validation is enforced by the .NET auth gateway, and the backend accepts only trusted gateway user headers.
+- Authentication is Microsoft Entra ID only: the frontend uses MSAL and sends a Bearer JWT; the auth gateway validates it before proxying requests to the backend.
 
 ---
 
@@ -75,7 +81,8 @@ The platform replaces a manual, asynchronous process where a PM has to interview
 | Layer | Technology | Purpose |
 |---|---|---|
 | Frontend | Next.js 14 (App Router), TypeScript, Tailwind | SPA UI; consumes SSE streams for live agent output |
-| Backend API | Python 3.12, FastAPI | Auth, session management, orchestration entry points |
+| Auth Gateway | .NET 8, Microsoft Identity Web | Entra token validation + trusted proxy to backend |
+| Backend API | Python 3.12, FastAPI | Session management and orchestration entry points |
 | Debate Workflow | `workflows/debate_workflow.py` | Parallel CSA dispatch + sequential Director synthesis |
 | Agent Layer | `agents/role_agents.py` + Microsoft Agent Framework | Creates Azure OpenAI Assistants per role, enforces grounding constraints |
 | Swarm Orchestrator | `swarm/orchestrator.py` | Deliverable generation using debate transcript as source of truth |
@@ -227,7 +234,7 @@ Each user only sees their own sessions — all queries filter by `user_id` deriv
 
 | Concern | Approach |
 |---|---|
-| Authentication | Entra ID MSAL (frontend) + JWT validation against JWKS (backend) |
+| Authentication | Entra ID MSAL (frontend) + JWT validation in .NET auth gateway (Microsoft Identity Web) |
 | No credentials in config | All Azure SDK calls use `DefaultAzureCredential` (Managed Identity in ACA) |
 | Cosmos DB network isolation | Private endpoint; `publicNetworkAccess: Disabled` |
 | Cosmos DB data plane auth | RBAC (`Cosmos DB Built-in Data Contributor`) — no account keys |
@@ -268,15 +275,15 @@ azd env new <env-name>
 azd env set ENTRA_CLIENT_ID <your-app-registration-client-id>
 azd env set ENTRA_TENANT_ID <your-aad-tenant-id>
 
-# 3. Provision infrastructure and deploy both apps
+# 3. Provision infrastructure and deploy all apps
 azd up
 ```
 
 `azd up` will:
 
 1. Provision all Azure resources via Bicep (`infra/main.bicep`) — VNet, Container Apps Environment, ACR, Cosmos DB (private endpoint), AI Services + gpt-4o deployment, Log Analytics, Key Vault, Storage, AI Foundry hub/project.
-2. Build the backend and frontend Docker images and push them to the new ACR.
-3. Deploy both Container Apps with managed identities and the necessary RBAC role assignments.
+2. Build the backend, auth-gateway, and frontend Docker images and push them to the new ACR.
+3. Deploy all Container Apps with managed identities and the necessary RBAC role assignments.
 4. Run the `postprovision` hook in [scripts/](scripts/) to set the Entra ID app registration `identifierUris` to the deployed backend URL.
 
 When complete, `azd` prints the frontend URL. Sign in with an account in your tenant to begin a session.
@@ -299,7 +306,7 @@ npm run dev                # http://localhost:3000
 
 For local dev the backend uses `DefaultAzureCredential`, so `az login` against an account that has the `Cognitive Services OpenAI User` and `Cosmos DB Built-in Data Contributor` roles on the deployed resources.
 
-Set `AUTH_ENABLED=false` in `.env` to bypass JWT validation for fast iteration.
+Set `AUTH_ENABLED=false` in `.env` to bypass gateway token validation for fast iteration.
 
 ### Tear Down
 
@@ -313,14 +320,15 @@ azd down --purge
 
 ```
 agents/      Per-role agent factory (Microsoft Agent Framework wrapper)
-api/         FastAPI app, routes, JWT auth
+api/         FastAPI app, routes, trusted gateway/user auth dependency
 config/      Settings loader and roles.yaml (CSA persona definitions)
+gateway/     .NET auth gateway (token validation + backend proxy)
 frontend/    Next.js 14 App Router UI
 infra/       Bicep templates (main + cosmos + containerapp modules)
 scripts/     azd lifecycle hooks (e.g. set-app-identifier-uri.sh)
 swarm/       Cosmos store, context loader, deliverable orchestrator
 workflows/   Debate workflow (parallel CSAs + sequential Director)
-Dockerfile.backend / Dockerfile.frontend
+Dockerfile.backend / Dockerfile.gateway / Dockerfile.frontend
 azure.yaml   azd service map
 ```
 

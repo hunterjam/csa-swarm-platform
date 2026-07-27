@@ -3,6 +3,7 @@ config/settings.py
 Loads all environment configuration from .env.
 """
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv(override=False)
@@ -11,7 +12,7 @@ load_dotenv(override=False)
 def _require(key: str) -> str:
     value = os.getenv(key)
     if not value:
-        raise EnvironmentError(
+        raise OSError(
             f"Required environment variable '{key}' is not set. "
             "Copy .env.example to .env and fill in your values."
         )
@@ -36,6 +37,14 @@ ENTRA_TENANT_ID: str = os.getenv("ENTRA_TENANT_ID", "")
 ENTRA_CLIENT_ID: str = os.getenv("ENTRA_CLIENT_ID", "")
 # Set to "false" for local dev
 AUTH_ENABLED: bool = os.getenv("AUTH_ENABLED", "true").lower() == "true"
+# Set to "true" when a trusted auth gateway validates user tokens and injects
+# user identity into request headers for this backend.
+AUTH_TRUSTED_GATEWAY: bool = (
+    os.getenv("AUTH_TRUSTED_GATEWAY", "false").lower() == "true"
+)
+# Shared secret between gateway and backend; required when
+# AUTH_TRUSTED_GATEWAY=true.
+GATEWAY_SHARED_SECRET: str = os.getenv("GATEWAY_SHARED_SECRET", "")
 
 # ── CORS ─────────────────────────────────────────────────────────────────
 _cors_raw: str = os.getenv("CORS_ORIGINS", "http://localhost:3000")
